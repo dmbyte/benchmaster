@@ -1,6 +1,10 @@
 # benchmaster
 Benchmark scripts, config files, etc
 
+# Results Spreadsheet
+This sheet makes it relatively easy to consume the output of the benchmaster-extract.sh.  The sheet does have embedded formulas that you may need to adjust to correctly consume and use the output.
+In general, use an empty area of the sheet to copy and paste in the results from the benchmaster-extract script.  Highlight the results and go to the data tab in the ribbon.  use text to columns and use the delimited selection, with a comma as the delimiter.  After hitting finish, you will have two colums, 1 with the label and 1 with the output.  Put the output in the appropriate location and the formulas will either sum, or average the output as appropriate.
+
 # Object General:
  Install cosbench (https://github.com/intel-cloud/cosbench/releases) and get it running.
  copy the s3-standard.xml file to the cosbench application directory
