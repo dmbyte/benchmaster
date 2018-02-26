@@ -30,7 +30,7 @@ The benchmaster-fio.sh file will execute a number of tests.
  In the top of the file is a section to edit parameters for the test run.
  
  where=/dev/rbd
-  -This is the location of the devices to test.  If the device is a raw device like rbd[0..9] then the location is /dev/rbd.   If the device is a file, then it would be something like /mnt/mountname/file
+  - This is the location of the devices to test.  If the device is a raw device like rbd[0..9] then the location is /dev/rbd.   If the device is a file, then it would be something like /mnt/mountname/file
   
  ramp=300
   - This is the ramp time in seconds allocated to each test where no results will be recorded.  This provides time for the device to warm up and not affect the outcome.
