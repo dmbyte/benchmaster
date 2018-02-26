@@ -10,26 +10,26 @@ Benchmark scripts, config files, etc
  ## s3-standard.xml
  This file contains a set of tests that are comparable to the fio tests with the addition of a 60/40 read/write test.  Runtime is a bit short in the current file at only five minutes and should be adjusted for your purposes.
  
-Block & File General:
+# Block & File General:
  The use of this script is to install fio and all benchmaster scripts on each node.
  initiate a screen session to run the fio script.  
  The best practice is to have all windows open simultaneously and then launch the 
  scripts on one after another as quickly as possible.
 
-# benchmaster-extract.sh
+## benchmaster-extract.sh
 This script parses the output from the benchmaster-fio script and creates data that is easily 
 parsed as comma-delimited text by a spreadsheet.
 
 usage:
  benchmaster-extract.sh testname
  
-# benchmaster-fio.sh 
+## benchmaster-fio.sh 
 usage: 
  benchmaster-fio.sh testname
  e.g. ./benchmaster-fio.sh 2node-cephfs
 
 
-Configuration:
+### Configuration:
 
 The benchmaster-fio.sh file will execute a number of tests.
  - sequential read and write tests at 8k, 128k, and 1MB
