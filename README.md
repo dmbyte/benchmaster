@@ -1,7 +1,16 @@
 # benchmaster
 Benchmark scripts, config files, etc
 
-General:
+Object General:
+ Install cosbench (https://github.com/intel-cloud/cosbench/releases) and get it running.
+ copy the s3-standard.xml file to the cosbench application directory
+ use the cli.sh script to launch workloads
+ e.g. ./cli.sh s3-standard.xml
+ 
+ # s3-standard.xml
+ This file contains a set of tests that are comparable to the fio tests with the addition of a 60/40 read/write test.  Runtime is a bit short in the current file at only five minutes and should be adjusted for your purposes.
+ 
+Block & File General:
  The use of this script is to install fio and all benchmaster scripts on each node.
  initiate a screen session to run the fio script.  
  The best practice is to have all windows open simultaneously and then launch the 
