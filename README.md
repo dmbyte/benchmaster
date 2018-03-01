@@ -33,6 +33,9 @@ usage:
  e.g. ./benchmaster-fio.sh 2node-cephfs
 
 
+### Preperation
+Each load generation node expects to have 10 devices or files to write to. Each device should be unique per load generator.  They should always be in the format of /dev/rbd0, /dev/dm-0, or /mnt/cephfs/fil0.  The test devices expect to start at 0 and end on 9
+
 ### Configuration:
 
 The benchmaster-fio.sh file will execute a number of tests.
