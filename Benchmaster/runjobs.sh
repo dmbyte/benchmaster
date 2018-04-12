@@ -1,13 +1,16 @@
 #!/bin/bash
 jobfiles=`ls jobfiles/*.fio`
 loadgens=`cat loadgens.lst`
-if [ ! -d results];then
+if [ ! -d results ];then
     mkdir results
 fi
 
-echo -n "Describe the Cluster"
-read cdesk
+echo -n "Describe the Cluster:  "
+read cdesc
 echo "**** Cluster Description ****">results/cephinfo.txt
+echo $cdesc >>results/cephinfo.txt
+echo " ">>results/cephinfo.txt
+
 echo "**** Ceph Status ****">>results/cephinfo.txt
 ceph status >>results/cephinfo.txt
 
@@ -35,11 +38,11 @@ cat /srv/pillar/ceph/proposals/policy.cfg >>results/cephinfo.txt
 
 echo " ">>results/cephinfo.txt
 echo "**** OSD Info ****" >>results/cephinfo.txt
-for j in `cat osdnodes.lst`; do ssh root@$j 'hostname;echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt';done
-
+for j in `cat osdnodes.lst`; do ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt;done
 
 for i in $jobfiles
 do
+        i=${i##*/}
 	jobname=${i%.*}
 	echo "Running job: $jobname"
   	mkdir results/$jobname
@@ -51,7 +54,7 @@ do
 		commandset=("--client=$l" )
 		command+="$commandset jobfiles/$i "
 	done
-	fio $command --output-format=normal,json+ --output=jobfiles/$jobname/$jobname.benchmark
+	fio $command --output-format=normal,json+ --output=results/$jobname/$jobname.benchmark
         echo "Letting system settle for 30s"
         sleep 30s
 done

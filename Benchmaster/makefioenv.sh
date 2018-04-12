@@ -1,15 +1,15 @@
 #!/bin/bash
 
 #check if loadgens.lst file is present
-if [ -f /root/loadgens.lst ];then
+if [ ! -f /root/loadgens.lst ];then
         echo "You must create the /root/loadgens.lst file for this to work"
         exit
 fi
 echo "if your load generation nodes don't resolve by name, CTL-C now and fix it."
-pause 5s
+sleep 5s
 
 echo "First we'll ensure that we have uninhibited access"
-pause 3s
+sleep 3s
 #Check if public key is present
 if [ ! -f /root/.ssh/id_rsa.pub ];then
         ssh-keygen
@@ -17,7 +17,7 @@ fi
 #copy public key to loadgens
 for m in `cat /root/loadgens.lst`;do ssh-copy-id root@$m;done
 echo "if there were any issues above, please CTL-C now and correct them, then re-run the script"
-pause 5s
+sleep 5s
 echo "Creating Pool(s)"
 #create pools
 #create EC pool definition that fits in 4 node (3&1?)
