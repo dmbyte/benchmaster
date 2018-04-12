@@ -57,6 +57,12 @@ do
 done
 
 if [ $sendresult == 1 ];then
-    python sendit.py
+    shopt -s extglob
+    id=`ceph status|grep id|cut -f2 -d":"`
+    id="${id##*( )}"
+    id="${id%%*( )}"
+    shopt -u extglob
+    tar -czf $id.tgz results
+    python sendit.py $id
 fi
 
