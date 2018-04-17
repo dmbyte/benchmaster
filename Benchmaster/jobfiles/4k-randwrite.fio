@@ -1,0 +1,30 @@
+[global]
+time_based=1
+ramp_time=30
+runtime=750
+# size= ...
+direct=1
+ioengine=libaio
+random_generator=lfsr
+randseed=0
+refill_buffers=1
+norandommap
+randrepeat=1
+per_job_logs=0
+group_reporting
+filename=${fiotarget}
+[${curjob}]
+rw=randrw
+rwmixread=0
+bs=4k
+iodepth=32
+filesize=95G
+numjobs=16
+latency_target=10ms
+latency_window=5s
+latency_percentile=99.99999
+#max_latency=5ms
+## rate_cycle=???
+write_bw_log=results/${curjob}/write.results
+write_iops_log=results/${curjob}/write.results
+write_lat_log=results/${curjob}/write.results
