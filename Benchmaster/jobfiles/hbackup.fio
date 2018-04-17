@@ -12,8 +12,8 @@ norandommap
 randrepeat=1
 per_job_logs=0
 group_reporting
-filename=/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9
-[hbackup]
+filename=${fiotarget}
+[${curjob}]
 rw=rw
 rwmixread=0
 bs=64M
@@ -24,7 +24,7 @@ latency_target=200ms
 latency_window=5s
 latency_percentile=99.99
 ## rate_cycle=???
-write_bw_log=results/hbackup/write.results
-write_iops_log=results/hbackup/write.results
-write_lat_log=results/hbackup/write.results
+write_bw_log=results/${curjob}/write.results
+write_iops_log=results/${curjob}/write.results
+write_lat_log=results/${curjob}/write.results
 

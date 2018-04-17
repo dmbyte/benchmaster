@@ -12,8 +12,8 @@ norandommap
 randrepeat=1
 per_job_logs=0
 group_reporting
-filename=/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9
-[4k-randread]
+filename=${fiotarget}
+[${curjob}]
 rw=randrw
 rwmixread=100
 bs=4k
@@ -25,6 +25,6 @@ latency_window=5s
 latency_percentile=99.99999
 #max_latency=5ms
 ## rate_cycle=???
-write_bw_log=results/4k-randread/write.results
-write_iops_log=results/4k-randread/write.results
-write_lat_log=results/4k-randread/write.results
+write_bw_log=results/${curjob}/write.results
+write_iops_log=results/${curjob}/write.results
+write_lat_log=results/${curjob}/write.results
