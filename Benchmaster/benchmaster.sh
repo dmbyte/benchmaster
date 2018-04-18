@@ -11,10 +11,19 @@ runtime=750
 
 #check if loadgens.lst file is present
 if [ ! -f loadgens.lst ];then
-        echo "!! You must create the loadgens.lst file for this to work"
+        echo "!! You must create the loadgens.lst file for this to work."
+        echo "   The file should contain a list of all the loadgen nodes with"
+        echo "   one per line."
+
         exit
 fi
 
+if [ ! -f osdnodes.lst ];then
+        echo "!! You must create the osdnodes.lst file for this to work."
+        echo "   The file should contain a list of all the osd nodes with one"
+        echo "   per line."
+        exit
+fi
 while [[ $rbdresponse != [yYnN] ]];
 do
     read -r -p "Do you want to test RBD? [y/N] " rbdresponse
