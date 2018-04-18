@@ -13,9 +13,9 @@ randrepeat=1
 per_job_logs=0
 group_reporting
 filename=${fiotarget}
-[recovery]
+[backup]
 rw=rw
-rwmixread=100
+rwmixread=0
 bs=64M
 iodepth=32
 filesize=${filesize}

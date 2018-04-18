@@ -1,8 +1,7 @@
 [global]
 time_based=1
-ramp_time=30
-runtime=750
-# size= ...
+ramp_time=${ramptime}
+runtime=${runtime}
 direct=1
 ioengine=libaio
 random_generator=lfsr
@@ -13,12 +12,12 @@ randrepeat=1
 per_job_logs=0
 group_reporting
 filename=${fiotarget}
-[${curjob}]
+[oltp-log]
 rw=rw
 rwmixread=20
 bs=8k
 iodepth=32
-filesize=95G
+filesize=${filesize}
 numjobs=16
 latency_target=1ms
 latency_window=5s
