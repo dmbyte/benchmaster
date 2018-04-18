@@ -1,7 +1,7 @@
 [global]
 time_based=1
-ramp_time=30
-runtime=750
+ramp_time=${ramptime}
+runtime=${runtime}
 # size= ...
 direct=1
 ioengine=rbd

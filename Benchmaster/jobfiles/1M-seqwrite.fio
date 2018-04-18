@@ -2,7 +2,6 @@
 time_based=1
 ramp_time=${ramptime}
 runtime=${runtime}
-# size= ...
 direct=1
 ioengine=libaio
 random_generator=lfsr
@@ -13,18 +12,18 @@ randrepeat=1
 per_job_logs=0
 group_reporting
 filename=${fiotarget}
-[recovery]
+
+[1M-seqwrite]
 rw=rw
-rwmixread=100
-bs=64M
+rwmixread=0
+bs=1M
 iodepth=32
 filesize=${filesize}
 numjobs=16
-latency_target=200ms
+latency_target=100ms
 latency_window=5s
-latency_percentile=99.99
-## rate_cycle=???
+latency_percentile=99.99999
+
 write_bw_log=results/${curjob}/write.results
 write_iops_log=results/${curjob}/write.results
 write_lat_log=results/${curjob}/write.results
-
