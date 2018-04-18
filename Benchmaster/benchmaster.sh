@@ -1,5 +1,5 @@
 #!/bin/bash
-debug=1
+debug=0
 #debug doesn't collect system info.
 
 infogather(){
