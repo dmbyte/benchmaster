@@ -4,8 +4,8 @@ debug=0
 
 infogather(){
 allocdiv=0
-ramptime=30
-runtime=750
+ramptime=600
+runtime=1800
 #This function sets up the environment
 #Start by gathering information
 
@@ -236,7 +236,7 @@ echo "Mounting cephfs and creating a directory for each loadgen node"
 for k in `cat loadgens.lst`
 do
 	ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
-        ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+        ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
 done
 
 }
