@@ -1,4 +1,4 @@
-#skip cephfs s3
+#skip eccephfs cephfs s3
 [global]
 time_based=1
 ramp_time=${ramptime}
