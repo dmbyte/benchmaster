@@ -296,6 +296,8 @@ do
 	fi
 	for i in $jobfiles
 	do
+            skiplist=`head -1 jobfiles/$i|grep skip`
+            if ! [[ " $skiplist " =~ " $test " ]];then
         	i=${i##*/}
 		jobname=${i%.*}
 		export curjob=$test-$jobname
@@ -317,6 +319,7 @@ do
 		fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
 	        echo "Letting system settle for 30s"
 	        sleep 30s
+            fi
 	done
 done
 
