@@ -252,7 +252,7 @@ loadgens=`cat loadgens.lst`
 if [ $debug != 1 ]
 then
 echo "**** Cluster Description ****">results/cephinfo.txt
-echo $cdesc >>results/cephinfo.txt
+echo "clusterdescription:"$cdesc >>results/cephinfo.txt
 echo " ">>results/cephinfo.txt
 
 echo "**** Ceph Status ****">>results/cephinfo.txt
