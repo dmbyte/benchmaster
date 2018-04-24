@@ -22,4 +22,4 @@ fi
 if [ ! -d results/$jobname ]; then
     mkdir -p results/$jobname
 fi
-fio $jobfile --output-format=normal,json+ --output=results/$jobname/$jobname.benchmark
+fio $jobfile 
