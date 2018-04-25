@@ -178,6 +178,13 @@ do
 done
 } 
 prepare() {
+
+echo "** Ensuring ceph-common is installed"
+for m in `cat loadgens.lst`
+do
+    ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
+done
+
 echo "** Ensuring fio is installed"
 if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi
 for m in `cat loadgens.lst`
@@ -296,7 +303,7 @@ do
 	fi
 	for i in $jobfiles
 	do
-            skiplist=`head -1 jobfiles/$i|grep skip`
+            skiplist=`head -1 $i|grep skip`
             if ! [[ " $skiplist " =~ " $test " ]];then
         	i=${i##*/}
 		jobname=${i%.*}
