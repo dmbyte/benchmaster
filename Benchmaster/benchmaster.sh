@@ -52,7 +52,7 @@ else
         ecplugin="jerasure"
 fi
 
-testlist=""
+testlist="prepit.prep "
 if [[ $rbdresponse =~ [yY] ]]
 then
 	testlist="rbd ecrbd $testlist"
@@ -231,6 +231,7 @@ for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize
 #map the 10 ec rbds per host
 echo "Mapping the EC RBDs"
 for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
+#need to initialize the complete RBD size that is provisioned to fix bad read results
 
 #create EC CephFS pool and mount it
 ceph osd pool create eccephfsbench 128 128 erasure ecbench
