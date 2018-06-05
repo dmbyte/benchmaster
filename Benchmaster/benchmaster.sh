@@ -52,7 +52,7 @@ else
         ecplugin="jerasure"
 fi
 
-testlist="prepit.prep "
+testlist=""
 if [[ $rbdresponse =~ [yY] ]]
 then
 	testlist="rbd ecrbd $testlist"
@@ -307,7 +307,7 @@ do
             skiplist=`head -1 $i|grep skip`
             if ! [[ " $skiplist " =~ " $test " ]];then
         	i=${i##*/}
-		jobname=${i%.*}
+		jobname="prepit.prep "${i%.*}
 		export curjob=$test-$jobname
 		echo "*** Running job: $curjob ***"
 	  	mkdir results/$curjob
