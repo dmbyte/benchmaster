@@ -12,7 +12,7 @@ norandommap
 randrepeat=1
 per_job_logs=0
 group_reporting
-filename=/dev/rbd0
+filename=${fiotarget}
 buffer_compress_percentage=0
 
 [4M-seqread]
