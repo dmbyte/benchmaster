@@ -253,7 +253,7 @@ done
 runjobs(){
 
 #This function runs the jobfiles
-jobfiles=`ls jobfiles/*.fio`
+jobfiles="prepit.prep "`ls jobfiles/*.fio`
 loadgens=`cat loadgens.lst`
 
 
@@ -307,7 +307,7 @@ do
             skiplist=`head -1 $i|grep skip`
             if ! [[ " $skiplist " =~ " $test " ]];then
         	i=${i##*/}
-		jobname="prepit.prep "${i%.*}
+		jobname=${i%.*}
 		export curjob=$test-$jobname
 		echo "*** Running job: $curjob ***"
 	  	mkdir results/$curjob
