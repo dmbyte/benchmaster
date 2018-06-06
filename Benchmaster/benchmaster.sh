@@ -108,6 +108,9 @@ shopt -u extglob
 # RGW has one EC 
 # Replicated pools get 3 allocation units
 # EC pools get 2 allocation units as the EC scheme is k=2,m=2
+# allocdiv represents the number of allocation units the required tests will 
+# need. It is basically the divisor for usable space from the raw space.
+#e.g. rbd on ec and replication needs 5 units.
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
 rawavail=`ceph osd df |grep TOTAL|xargs|cut -f4 -d" "`
 rawlen=${#rawavail}

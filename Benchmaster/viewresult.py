@@ -7,9 +7,10 @@ print 'RW Setting: %s'%(fiodata['client_stats'][0]['job options']['rw'])
 print 'Read: %s'%(fiodata['client_stats'][0]['job options']['rwmixread'])
 print 'IO Depth: %s'%(fiodata['client_stats'][0]['job options']['iodepth'])
 print 'Jobs per node: %s'%(fiodata['client_stats'][0]['job options']['numjobs'])
-print 'Latency Target: %s'%(fiodata['client_stats'][0]['job options']['latency_target'])
-print 'Latency window %s'%(fiodata['client_stats'][0]['job options']['latency_window'])
-print 'Percent of I/O that MUST be in the targer during the window: %s'%(fiodata['client_stats'][0]['job options']['latency_percentile'])
+if 'latency_target' in fiodata['client_stats'][0]['job options']:
+    print 'Latency Target: %s'%(fiodata['client_stats'][0]['job options']['latency_target'])
+    print 'Latency window %s'%(fiodata['client_stats'][0]['job options']['latency_window'])
+    print 'Percent of I/O that MUST be in the targer during the window: %s'%(fiodata['client_stats'][0]['job options']['latency_percentile'])
 for x in range(0,len(fiodata['client_stats'])):
 	print '-----------------------------------------------------------------------'
 	if x == len(fiodata['client_stats'])-1:
