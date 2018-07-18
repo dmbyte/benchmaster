@@ -8,10 +8,10 @@ It is recommended that benchmaster be run on the salt-master/SES admin node
 ****WARNING**** The run time for a full suite of tests will range from 2 - 6 days depending on the size and speed of the OSDs as the cluster must pre-poulate the test images with uncompressible, random data
 
 ### Preperation
-The script expects to have 3 files placed in benchmaster/Benchmaster
+Every node should have access to both SLES and SUSE Enterprise Storage Repos
+The script expects to have 2 files placed in benchmaster/Benchmaster
  - loadgens.lst: This will contain resolvable hostnames of the load generation nodes. These should have a fresh install of SLES
- - cluster.lst: a list of all cluster nodes
- - osds.lst: a list of all OSD nodes in the cluster
+  - osdnodes.lst: a list of all OSD nodes in the cluster
 
 ### Configuration:
 There are two parameters you can edit in the top of the file.  These control test run time.  They are defaulted to values that should help ensure that the cache is overrun and that actual performance maximums are achieved.  
