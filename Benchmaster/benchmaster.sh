@@ -166,7 +166,7 @@ for m in `cat loadgens.lst`
 do
     echo "** Now copying public key to $m."
     echo "   You'll be prompted for the root password on that host."
-    ssh-copy-id -oStrictHostKeyChecking=no -f ~/.ssh/id_rsa.pub root@$m &>/dev/null
+    ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa.pub root@$m &>/dev/null
 done
 
 for m in `cat loadgens.lst`
