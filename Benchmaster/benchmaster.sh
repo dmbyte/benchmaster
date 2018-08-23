@@ -236,20 +236,22 @@ echo "Mapping the EC RBDs"
 for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
 #need to initialize the complete RBD size that is provisioned to fix bad read results
 
-#create EC CephFS pool and mount it
-ceph osd pool create eccephfsbench 128 128 erasure ecbench
-ceph osd pool set eccephfsbench allow_ec_overwrites true
-ceph osd pool application enable eccephfsbench cephfs
-ceph fs add_data_pool cephfs eccephfsbench
+if [[ $cephfsresponse =~ [yY] ]]
+then
+    #create EC CephFS pool and mount it
+    ceph osd pool create eccephfsbench 128 128 erasure ecbench
+    ceph osd pool set eccephfsbench allow_ec_overwrites true
+    ceph osd pool application enable eccephfsbench cephfs
+    ceph fs add_data_pool cephfs eccephfsbench
 
-#mount cephfs on each node
-echo "Mounting cephfs and creating a directory for each loadgen node"
-for k in `cat loadgens.lst`
-do
-	ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
-        ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
-done
-
+    #mount cephfs on each node
+    echo "Mounting cephfs and creating a directory for each loadgen node"
+    for k in `cat loadgens.lst`
+    do
+            ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
+            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+    done
+fi
 }
 
 
