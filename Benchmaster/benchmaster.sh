@@ -24,6 +24,7 @@ if [ ! -f osdnodes.lst ];then
         echo "   per line."
         exit
 fi
+
 while [[ $rbdresponse != [yYnN] ]];
 do
     read -r -p "Do you want to test RBD? [y/N] " rbdresponse
@@ -34,16 +35,26 @@ do
 	read -r -p "Do you want to test CephFS? [y/N] " cephfsresponse
 done
 
+while [[ $testecresponse != [yYnN] ]];
+do
+    read -r -p "Do you want to test Erasure Coding? [y/N] " testecresponse
+done
+
+if [[ $testecresponse =~ [yY] ]]
+then
+    while [[ $isaresponse != [yYnN] ]];
+    do
+	read -r -p "Do you want to use the ISA plugin for Erasure Coding? [y/N] " isaresponse
+    done
+else 
+    isaresponse="n"
+fi
+
 #while [[ $s3response != [yYnN] ]];
 #do
 #        read -r -p "Do you want to test S3? [y/N] " s3response
 #done
 
-
-while [[ $isaresponse != [yYnN] ]];
-do
-	read -r -p "Do you want to use the ISA plugin for Erasure Coding? [y/N] " isaresponse
-done
 
 if [[ $isaresponse =~ [yY] ]]
 then
@@ -55,14 +66,26 @@ fi
 testlist=""
 if [[ $rbdresponse =~ [yY] ]]
 then
+    if [[ $testecresponse =~ [yY] ]]
+    then
 	testlist="rbd ecrbd $testlist"
+    else
+	testlist="rbd $testlist"
+    fi
         allocdiv=$[allocdiv+5]
         
 fi
 
 if [[ $cephfsresponse =~ [yY] ]]
 then
+    if [[ $testecresponse =~ [yY] ]]
+    then
 	testlist="cephfs eccephfs $testlist"
+    else
+	testlist="cephfs $testlist"
+
+    fi
+
         allocdiv=$[allocdiv+5]
 
 fi
@@ -210,6 +233,8 @@ echo "** Creating Pool(s)"
 #TODO: create EC pool definition that fits in 4 node (3&1?)
 #TODO: look at size of ceph and create pools and images of appropriate size (no more than 150GB per image)
 #      and set environment variables for filesize used in .fio files
+if [[ $rbdresponse =~ [yY] ]]
+then
 
 #create a pool of size 3 for initial benchmarks
 ceph osd pool create 3rep-bench 512 512
@@ -222,6 +247,8 @@ for i in `cat loadgens.lst`;do for j in {0..9};do rbd create 3rep-bench/$i-$j --
 echo "Mapping the Replicated RBDs"
 for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/`hostname`-$l;done';done 
 
+if [[ $testecresponse =~ [yY] ]]
+then
 #make EC RBD pool and mount it
 ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1
 ceph osd pool create ecrbdbench 128 128 erasure ecbench
@@ -235,21 +262,27 @@ for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize
 echo "Mapping the EC RBDs"
 for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
 #need to initialize the complete RBD size that is provisioned to fix bad read results
-
+fi
+fi
 if [[ $cephfsresponse =~ [yY] ]]
+then
+if [[ $testecresponse =~ [yY] ]]
 then
     #create EC CephFS pool and mount it
     ceph osd pool create eccephfsbench 128 128 erasure ecbench
     ceph osd pool set eccephfsbench allow_ec_overwrites true
     ceph osd pool application enable eccephfsbench cephfs
     ceph fs add_data_pool cephfs eccephfsbench
-
+fi
     #mount cephfs on each node
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
             ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
-            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+if [[ $testecresponse =~ [yY] ]]
+then  
+          ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+fi
     done
 fi
 }
