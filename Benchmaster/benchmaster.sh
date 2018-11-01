@@ -135,24 +135,14 @@ shopt -u extglob
 # need. It is basically the divisor for usable space from the raw space.
 #e.g. rbd on ec and replication needs 5 units.
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
-rawavail=`ceph osd df |grep TOTAL|xargs|cut -f4 -d" "`
+rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawlen=${#rawavail}
-rawunit=${rawavail:(-1)}
-rawspace=${rawavail:0:($rawlen-1)}
+rawspace=${rawavail}
 echo rawspace=$rawspace
-echo rawunit=$rawunit
-
-#if rbd & cephfs & s3
-if [ $rawunit == "T" ];then
-    spacemultiplier=1000
-elif [ $rawunit == "G" ];then
-    spacemultiplier=1
-elif [ $rawunit == "P" ];then
-    spacemultiplier=1000000
-fi
+echo rawunit=kb
 
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
-allocunit=$[(rawspace * spacemultiplier)/allocdiv]
+allocunit=$((rawspace / 1024 / 1024 / allocdiv))
 if [ $allocunit -gt $[1500*loadgencnt] ];then
     allocunit=$[1500*loadgencnt]
 fi
