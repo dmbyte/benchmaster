@@ -282,7 +282,7 @@ fi
 runjobs(){
 
 #This function runs the jobfiles
-jobfiles="prepit.prep "`ls jobfiles/*.fio`
+jobfiles="jobfiles/prepit.prep "`ls jobfiles/*.fio`
 loadgens=`cat loadgens.lst`
 
 
