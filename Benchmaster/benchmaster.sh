@@ -236,53 +236,54 @@ echo "** Creating Pool(s)"
 if [[ $rbdresponse =~ [yY] ]]
 then
 
-#create a pool of size 3 for initial benchmarks
-ceph osd pool create 3rep-bench 512 512
+    #create a pool of size 3 for initial benchmarks
+    ceph osd pool create 3rep-bench 512 512
 
-#create 10 rbds per host of the size set in rbdimgesize
-echo "Creating RBDs for testing"
-for i in `cat loadgens.lst`;do for j in {0..9};do rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G;done;done
+    #create 10 rbds per host of the size set in rbdimgesize
+    echo "Creating RBDs for testing"
+    for i in `cat loadgens.lst`;do for j in {0..9};do rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G;done;done
 
-#map the 10 replicated rbds per host
-echo "Mapping the Replicated RBDs"
-for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/`hostname`-$l;done';done 
+    #map the 10 replicated rbds per host
+    echo "Mapping the Replicated RBDs"
+    for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/`hostname`-$l;done';done 
 
-if [[ $testecresponse =~ [yY] ]]
-then
-#make EC RBD pool and mount it
-ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1
-ceph osd pool create ecrbdbench 128 128 erasure ecbench
-ceph osd pool set ecrbdbench allow_ec_overwrites true
-ceph osd pool application enable ecrbdbench rbd
+    if [[ $testecresponse =~ [yY] ]]
+    then
+        #make EC RBD pool and mount it
+        ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1
+        ceph osd pool create ecrbdbench 128 128 erasure ecbench
+        ceph osd pool set ecrbdbench allow_ec_overwrites true
+        ceph osd pool application enable ecrbdbench rbd
 
-#create rbd images for ecrbd
-for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j;done;done
+        #create rbd images for ecrbd
+        for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j;done;done
 
-#map the 10 ec rbds per host
-echo "Mapping the EC RBDs"
-for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
-#need to initialize the complete RBD size that is provisioned to fix bad read results
+        #map the 10 ec rbds per host
+        echo "Mapping the EC RBDs"
+        for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
+        #need to initialize the complete RBD size that is provisioned to fix bad read results
+    fi
 fi
-fi
+
 if [[ $cephfsresponse =~ [yY] ]]
 then
-if [[ $testecresponse =~ [yY] ]]
-then
-    #create EC CephFS pool and mount it
-    ceph osd pool create eccephfsbench 128 128 erasure ecbench
-    ceph osd pool set eccephfsbench allow_ec_overwrites true
-    ceph osd pool application enable eccephfsbench cephfs
-    ceph fs add_data_pool cephfs eccephfsbench
-fi
+    if [[ $testecresponse =~ [yY] ]]
+    then
+        #create EC CephFS pool and mount it
+        ceph osd pool create eccephfsbench 128 128 erasure ecbench
+        ceph osd pool set eccephfsbench allow_ec_overwrites true
+        ceph osd pool application enable eccephfsbench cephfs
+        ceph fs add_data_pool cephfs eccephfsbench
+    fi
     #mount cephfs on each node
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-            ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
-if [[ $testecresponse =~ [yY] ]]
-then  
-          ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
-fi
+        ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
+        if [[ $testecresponse =~ [yY] ]]
+        then  
+            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+        fi
     done
 fi
 }
