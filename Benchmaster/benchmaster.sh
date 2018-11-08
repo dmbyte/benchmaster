@@ -322,15 +322,19 @@ do
 	case $test in
 	rbd)
 		export fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
+		export size=100%
 		;;
 	ecrbd)
 		export fiotarget="/dev/rbd10:/dev/rbd11:/dev/rbd12:/dev/rbd13:/dev/rbd14:/dev/rbd15:/dev/rbd16:/dev/rbd17:/dev/rbd18:/dev/rbd19"
+		export size=100%
 		;;
 	cephfs)
 		export fiotarget='/mnt/benchmaster/0.fil:/mnt/benchmaster/1.fil:/mnt/benchmaster/2.fil:/mnt/benchmaster/3.fil:/mnt/benchmaster/4.fil:/mnt/benchmaster/5.fil:/mnt/benchmaster/6.fil:/mnt/benchmaster/7.fil:/mnt/benchmaster/8.fil:/mnt/benchmaster/9.fil'
+		export size=$(($filesize * 10))G
 		;;
 	eccephfs)
 		export fiotarget='/mnt/benchmaster/ec/0.fil:/mnt/benchmaster/ec/1.fil:/mnt/benchmaster/ec/2.fil:/mnt/benchmaster/ec/3.fil:/mnt/benchmaster/ec/4.fil:/mnt/benchmaster/ec/5.fil:/mnt/benchmaster/ec/6.fil:/mnt/benchmaster/ec/7.fil:/mnt/benchmaster/ec/8.fil:/mnt/benchmaster/ec/9.fil'
+		export size=$(($filesize * 10))G
 		;;
 	esac
 
@@ -351,12 +355,13 @@ do
 			#start fio server on each loadgen
 			#echo "Killing any running fio on $l and starting fio servers in screen session"
         		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
+			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
 			sleep 1s
 			commandset=("--client=$l" )
 			command+="$commandset jobfiles/$i "
 		done
-		fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
+		curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
+			fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
 	        echo "Letting system settle for 30s"
 	        sleep 30s
             fi
