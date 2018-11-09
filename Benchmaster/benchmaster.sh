@@ -235,7 +235,7 @@ then
 
     #map the 10 replicated rbds per host
     echo "Mapping the Replicated RBDs"
-    for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/`hostname`-$l;done';done 
+    for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done";done
 
     if [[ $testecresponse =~ [yY] ]]
     then
@@ -250,7 +250,7 @@ then
 
         #map the 10 ec rbds per host
         echo "Mapping the EC RBDs"
-        for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
+        for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done";done
         #need to initialize the complete RBD size that is provisioned to fix bad read results
     fi
 fi
@@ -269,12 +269,12 @@ then
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-        ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
+        ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/$k"
         # Bind mount the per loadgen cephfs path to a universal path
         ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then  
-            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/$k"
             # Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster/ec; mount --bind /mnt/cephfs/ec/$k /mnt/benchmaster/ec"
         fi
@@ -381,7 +381,7 @@ fi
 
 #cleanup section
 cleanup() {
-for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/`hostname`;umount -R /mnt/benchmaster;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount -R /mnt/benchmaster;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
 ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
 ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
 ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
