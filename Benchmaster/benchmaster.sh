@@ -112,7 +112,7 @@ echo ""
 
 #make the results directory
 if [ ! -d results ];then
-    mkdir results
+    mkdir -p results
 fi
 
 #This function prepares the environment
@@ -269,12 +269,12 @@ then
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-        ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/$k"
+        ssh root@$k "mkdir -p /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir -p /mnt/cephfs/$k"
         # Bind mount the per loadgen cephfs path to a universal path
         ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then  
-            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/$k"
+            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
             # Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster/ec; mount --bind /mnt/cephfs/ec/$k /mnt/benchmaster/ec"
         fi
@@ -346,7 +346,7 @@ do
 		jobname=${i%.*}
 		export curjob=$test-$jobname
 		echo "*** Running job: $curjob ***"
-	  	mkdir results/$curjob
+		mkdir -p results/$curjob
 	        sleep 1s
 		commandset=""
 		command=""
