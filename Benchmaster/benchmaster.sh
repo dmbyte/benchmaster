@@ -381,7 +381,7 @@ fi
 
 #cleanup section
 cleanup() {
-for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount -R /mnt/benchmaster;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
 ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
 ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
 ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
