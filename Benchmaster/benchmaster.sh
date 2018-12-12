@@ -112,7 +112,7 @@ echo ""
 
 #make the results directory
 if [ ! -d results ];then
-    mkdir results
+    mkdir -p results
 fi
 
 #This function prepares the environment
@@ -235,7 +235,7 @@ then
 
     #map the 10 replicated rbds per host
     echo "Mapping the Replicated RBDs"
-    for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/`hostname`-$l;done';done 
+    for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done";done
 
     if [[ $testecresponse =~ [yY] ]]
     then
@@ -250,7 +250,7 @@ then
 
         #map the 10 ec rbds per host
         echo "Mapping the EC RBDs"
-        for k in `cat loadgens.lst`;do ssh root@$k 'for l in {0..9};do rbd map 3rep-bench/ec`hostname`-$l;done';done 
+        for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done";done
         #need to initialize the complete RBD size that is provisioned to fix bad read results
     fi
 fi
@@ -269,10 +269,14 @@ then
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-        ssh root@$k "mkdir /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir /mnt/cephfs/\`hostname\`"
+        ssh root@$k "mkdir -p /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir -p /mnt/cephfs/$k"
+        # Bind mount the per loadgen cephfs path to a universal path
+        ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then  
-            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir /mnt/cephfs/ec/\`hostname\`"
+            ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
+            # Bind mount the per loadgen cephfs path to a universal path
+            ssh root@$k "mkdir -p /mnt/benchmaster/ec; mount --bind /mnt/cephfs/ec/$k /mnt/benchmaster/ec"
         fi
     done
 fi
@@ -314,23 +318,26 @@ for j in `cat osdnodes.lst`; do ssh root@$j 'echo "******** HOSTNAME ******";hos
 fi
 for  test in $testlist
 do
-	if [ $test == "rbd" ]
-	then
-		fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
-	fi
-	if [ $test == "ecrbd" ]
-	then
-		fiotarget="/dev/rbd10:/dev/rbd11:/dev/rbd12:/dev/rbd13:/dev/rbd14:/dev/rbd15:/dev/rbd16:/dev/rbd17:/dev/rbd18:/dev/rbd19"
-	fi
-	if [ $test == "cephfs" ]
-	then
-		fiotarget='/mnt/cephfs/${HOSTNAME}/0.fil:/mnt/cephfs/${HOSTNAME}/1.fil:/mnt/cephfs/${HOSTNAME}/2.fil:/mnt/cephfs/${HOSTNAME}/3.fil:/mnt/cephfs/${HOSTNAME}/4.fil:/mnt/cephfs/${HOSTNAME}/5.fil:/mnt/cephfs/${HOSTNAME}/6.fil:/mnt/cephfs/${HOSTNAME}/7.fil:/mnt/cephfs/${HOSTNAME}/8.fil:/mnt/cephfs/${HOSTNAME}/9.fil'
-	fi
 
-	if [ $test == "eccephfs" ]
-	then
-		fiotarget='/mnt/cephfs/ec/${HOSTNAME}/0.fil:/mnt/cephfs/ec/${HOSTNAME}/1.fil:/mnt/cephfs/ec/${HOSTNAME}/2.fil:/mnt/cephfs/ec/${HOSTNAME}/3.fil:/mnt/cephfs/ec/${HOSTNAME}/4.fil:/mnt/cephfs/ec/${HOSTNAME}/5.fil:/mnt/cephfs/ec/${HOSTNAME}/6.fil:/mnt/cephfs/ec/${HOSTNAME}/7.fil:/mnt/cephfs/ec/${HOSTNAME}/8.fil:/mnt/cephfs/ec/${HOSTNAME}/9.fil'
-	fi
+	case $test in
+	rbd)
+		export fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
+		export size=100%
+		;;
+	ecrbd)
+		export fiotarget="/dev/rbd10:/dev/rbd11:/dev/rbd12:/dev/rbd13:/dev/rbd14:/dev/rbd15:/dev/rbd16:/dev/rbd17:/dev/rbd18:/dev/rbd19"
+		export size=100%
+		;;
+	cephfs)
+		export fiotarget='/mnt/benchmaster/0.fil:/mnt/benchmaster/1.fil:/mnt/benchmaster/2.fil:/mnt/benchmaster/3.fil:/mnt/benchmaster/4.fil:/mnt/benchmaster/5.fil:/mnt/benchmaster/6.fil:/mnt/benchmaster/7.fil:/mnt/benchmaster/8.fil:/mnt/benchmaster/9.fil'
+		export size=$(($filesize * 10))G
+		;;
+	eccephfs)
+		export fiotarget='/mnt/benchmaster/ec/0.fil:/mnt/benchmaster/ec/1.fil:/mnt/benchmaster/ec/2.fil:/mnt/benchmaster/ec/3.fil:/mnt/benchmaster/ec/4.fil:/mnt/benchmaster/ec/5.fil:/mnt/benchmaster/ec/6.fil:/mnt/benchmaster/ec/7.fil:/mnt/benchmaster/ec/8.fil:/mnt/benchmaster/ec/9.fil'
+		export size=$(($filesize * 10))G
+		;;
+	esac
+
 	for i in $jobfiles
 	do
             skiplist=`head -1 $i|grep skip`
@@ -339,7 +346,7 @@ do
 		jobname=${i%.*}
 		export curjob=$test-$jobname
 		echo "*** Running job: $curjob ***"
-	  	mkdir results/$curjob
+		mkdir -p results/$curjob
 	        sleep 1s
 		commandset=""
 		command=""
@@ -348,12 +355,13 @@ do
 			#start fio server on each loadgen
 			#echo "Killing any running fio on $l and starting fio servers in screen session"
         		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
+			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
 			sleep 1s
 			commandset=("--client=$l" )
 			command+="$commandset jobfiles/$i "
 		done
-		fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
+		curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
+			fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
 	        echo "Letting system settle for 30s"
 	        sleep 30s
             fi
@@ -373,7 +381,7 @@ fi
 
 #cleanup section
 cleanup() {
-for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/`hostname`;umount /mnt/cephfs;rm -rf /mnt/cephfs';done
+for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
 ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
 ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
 ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
