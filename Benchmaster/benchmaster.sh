@@ -24,6 +24,23 @@ if [ ! -f osdnodes.lst ];then
         echo "   per line."
         exit
 fi
+dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
+dclasses=${dclasslist//,/ }
+howmany() { echo $#; }
+classcount=`howmany $dclasses`
+ctemp=1
+for i in $dclasses
+do
+        echo "$ctemp: $i"
+        dlist[$ctemp]=$i
+        let "ctemp=ctemp+1"
+done
+inputs=`seq 1 $classcount|xargs`
+while [[ $deviceclassresponse != [$inputs] ]];
+do
+  read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
+done
+echo "selected device is ${dlist[$deviceclassresponse]}"
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -46,7 +63,7 @@ then
     do
 	read -r -p "Do you want to use the ISA plugin for Erasure Coding? [y/N] " isaresponse
     done
-else 
+else
     isaresponse="n"
 fi
 
@@ -73,7 +90,7 @@ then
 	testlist="rbd $testlist"
     fi
         allocdiv=$[allocdiv+5]
-        
+
 fi
 
 if [[ $cephfsresponse =~ [yY] ]]
@@ -100,7 +117,7 @@ echo -n "Describe the Cluster:  "
 read cdesc
 read -r -p "Do you want to upload the results? [y/N] " response
 case "$response" in
-    [yY][eE][sS]|[yY]) 
+    [yY][eE][sS]|[yY])
         sendresult=1
         ;;
     *)
@@ -127,11 +144,11 @@ secretkey="${secretkey%%*( )}"
 shopt -u extglob
 
 #Get ceph free space and calculate base allocation unit size (alloc_size)
-# given pools for the tests selected.  RBD & CephFS have both EC & Replicated, 
-# RGW has one EC 
+# given pools for the tests selected.  RBD & CephFS have both EC & Replicated,
+# RGW has one EC
 # Replicated pools get 3 allocation units
 # EC pools get 2 allocation units as the EC scheme is k=2,m=2
-# allocdiv represents the number of allocation units the required tests will 
+# allocdiv represents the number of allocation units the required tests will
 # need. It is basically the divisor for usable space from the raw space.
 #e.g. rbd on ec and replication needs 5 units.
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
@@ -183,7 +200,7 @@ do
 done
 
 for m in `cat loadgens.lst`
-do 
+do
     ssh root@$m 'exit'
     if [ $? -ne 0 ]
     then
@@ -192,7 +209,7 @@ do
         exit
     fi
 done
-} 
+}
 prepare() {
 
 echo "** Ensuring ceph-common is installed"
@@ -273,7 +290,7 @@ then
         # Bind mount the per loadgen cephfs path to a universal path
         ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
-        then  
+        then
             ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
             # Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster/ec; mount --bind /mnt/cephfs/ec/$k /mnt/benchmaster/ec"
@@ -439,4 +456,3 @@ else
     cleanup
 fi
 exit $RETVAL
-
