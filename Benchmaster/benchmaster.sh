@@ -40,7 +40,7 @@ while [[ $deviceclassresponse != [$inputs] ]];
 do
   read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
 done
-echo "selected device is ${dlist[$deviceclassresponse]}"
+# echo "selected device is ${dlist[$deviceclassresponse]}"
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -240,15 +240,36 @@ echo "** Creating Pool(s)"
 #TODO: create EC pool definition that fits in 4 node (3&1?)
 #TODO: look at size of ceph and create pools and images of appropriate size (no more than 150GB per image)
 #      and set environment variables for filesize used in .fio files
+mydclass=${dlist[$deviceclassresponse]}
+countdevinclass=`ceph osd tree |grep $mydclass|wc -l`
+testpower=0
+powertwo=0
+until [ "$powertwo" -ge $((countdevinclass*50)) ];do
+  powertwo=$((2**testpower))
+  testpower=$((testpower+1))
+done
+powertwo=$((powertwo/2))
+echo "DETERMINED PG Count to be $powertwo"
+
 if [[ $rbdresponse =~ [yY] ]]
 then
 
     #create a pool of size 3 for initial benchmarks
-    ceph osd pool create 3rep-bench 512 512
-
+    ceph osd crush rule create-replicated $mydclass default host $mydclass
+    ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+    ceph osd pool application enable 3rep-bench rbd
+    echo settling the system for 30 seconds
+    sleep 30s
     #create 10 rbds per host of the size set in rbdimgesize
     echo "Creating RBDs for testing"
-    for i in `cat loadgens.lst`;do for j in {0..9};do rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G;done;done
+    for i in `cat loadgens.lst`
+    do
+      for j in {0..9}
+      do
+        echo "rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G"
+        rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G
+      done
+    done
 
     #map the 10 replicated rbds per host
     echo "Mapping the Replicated RBDs"
@@ -257,13 +278,14 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
         #make EC RBD pool and mount it
-        ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1
-        ceph osd pool create ecrbdbench 128 128 erasure ecbench
+        ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
+        ceph osd pool create ecrbdbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
         ceph osd pool set ecrbdbench allow_ec_overwrites true
         ceph osd pool application enable ecrbdbench rbd
 
         #create rbd images for ecrbd
         for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j;done;done
+        sleep 10s
 
         #map the 10 ec rbds per host
         echo "Mapping the EC RBDs"
@@ -274,20 +296,43 @@ fi
 
 if [[ $cephfsresponse =~ [yY] ]]
 then
+    #delete the existing CephFS
+    salt '*' cmd.run 'systemctl stop ceph-mds.target'
+    for i in `seq 0 20`;
+    do
+      ceph mds fail $i
+    done
+    ceph fs rm cephfs --yes-i-really-mean-it
+    ceph tell mon.* injectargs --mon-allow-pool-delete=true
+    ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
+    ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
+    salt '*' cmd.run 'systemctl start ceph-mds.target'
+
+
+    #create new CephFS
+    ceph osd pool create cephfs_data $powertwo $powertwo replicated $mydclass
+    ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass
+    ceph fs new cephfs cephfs_metadata cephfs_data
+    sleep 1s
+    salt '*' cmd.run 'systemctl stop ceph-mds.target'
+    salt '*' cmd.run 'systemctl start ceph-mds.target'
+    echo -n Waiting while MDS creates metadata
+    while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
     if [[ $testecresponse =~ [yY] ]]
     then
         #create EC CephFS pool and mount it
-        ceph osd pool create eccephfsbench 128 128 erasure ecbench
+        ceph osd pool create eccephfsbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
         ceph osd pool set eccephfsbench allow_ec_overwrites true
         ceph osd pool application enable eccephfsbench cephfs
         ceph fs add_data_pool cephfs eccephfsbench
+        echo "System settling for 30s";sleep 30s
     fi
     #mount cephfs on each node
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
         ssh root@$k "mkdir -p /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir -p /mnt/cephfs/$k"
-        # Bind mount the per loadgen cephfs path to a universal path
+        echo Bind mount the per loadgen cephfs path to a universal path
         ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then
@@ -398,7 +443,19 @@ fi
 
 #cleanup section
 cleanup() {
+
 for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+salt '*' cmd.run 'systemctl stop ceph-mds.target'
+for i in `seq 0 20`;
+do
+  ceph mds fail $i
+done
+ceph fs rm cephfs --yes-i-really-mean-it
+ceph tell mon.* injectargs --mon-allow-pool-delete=true
+ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
+ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
+salt '*' cmd.run 'systemctl start ceph-mds.target'
+
 ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
 ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
 ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
@@ -406,6 +463,11 @@ ceph fs rm_data_pool cephfs eccephfsbench
 ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
 ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
 ceph osd erasure-code-profile rm ecbench
+ceph osd crush rule rm ecrbdbench
+ceph osd crush rule rm eccephfsbench
+ceph osd crush rule rm ssd
+ceph osd crush rule rm hdd
+
 for k in `cat loadgens.lst`
 do
         ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
