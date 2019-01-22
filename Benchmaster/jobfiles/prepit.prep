@@ -20,4 +20,4 @@ rw=write
 rwmixread=0
 bs=4M
 iodepth=32
-numjobs=16
+numjobs=12
