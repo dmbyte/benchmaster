@@ -297,7 +297,7 @@ fi
 if [[ $cephfsresponse =~ [yY] ]]
 then
     #delete the existing CephFS
-    salt '*' cmd.run 'systemctl stop ceph-mds.target'
+    salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
     for i in `seq 0 20`;
     do
       ceph mds fail $i
@@ -306,7 +306,7 @@ then
     ceph tell mon.* injectargs --mon-allow-pool-delete=true
     ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
     ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
-    salt '*' cmd.run 'systemctl start ceph-mds.target'
+    salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
 
 
     #create new CephFS
@@ -314,8 +314,9 @@ then
     ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass
     ceph fs new cephfs cephfs_metadata cephfs_data
     sleep 1s
-    salt '*' cmd.run 'systemctl stop ceph-mds.target'
-    salt '*' cmd.run 'systemctl start ceph-mds.target'
+    salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
+    sleep 3s
+    salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
     echo -n Waiting while MDS creates metadata
     while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
     if [[ $testecresponse =~ [yY] ]]
@@ -326,6 +327,13 @@ then
         ceph osd pool application enable eccephfsbench cephfs
         ceph fs add_data_pool cephfs eccephfsbench
         echo "System settling for 30s";sleep 30s
+        salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@$HOSTNAME'
+        salt -I roles:mds cmd.run ' systemctl start ceph-mds@$HOSTNAME'
+        #TODO: make sure ceph MDS are running.  do systemctl status ceph-mds@$HOSTNAME and look for "systemctl reset-failed"
+        #if found, issue command after the third set of quotes on the line
+        #sample line
+        # To force a start use "systemctl reset-failed ceph-mds@sr630-2.service" followed by "systemctl start ceph-mds@sr630-2.service" again.
+        sleep 5s
     fi
     #mount cephfs on each node
     echo "Mounting cephfs and creating a directory for each loadgen node"
