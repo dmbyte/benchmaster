@@ -431,7 +431,7 @@ do
 			command+="$commandset jobfiles/$i "
 		done
 		curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
-			fio $command --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark
+			fio --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command 
 	        echo "Letting system settle for 30s"
 	        sleep 30s
             fi
