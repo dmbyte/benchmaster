@@ -155,15 +155,15 @@ shopt -u extglob
 rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawlen=${#rawavail}
 rawspace=${rawavail}
-echo rawspace=$rawspace
-echo rawunit=kb
+#echo rawspace=$rawspace
+#echo rawunit=kb
 
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
 allocunit=$((rawspace / 1024 / 1024 / allocdiv))
 if [ $allocunit -gt $[1500*loadgencnt] ];then
     allocunit=$[1500*loadgencnt]
 fi
-echo allocunit=$allocunit
+#echo allocunit=$allocunit
 rbdimgsize=$[allocunit/(loadgencnt*10)]
 fsize=`echo "scale=0; $rbdimgsize * .9" | bc`
 filesize=${fsize%.*}
@@ -251,6 +251,13 @@ done
 powertwo=$((powertwo/2))
 echo "DETERMINED PG Count to be $powertwo"
 
+
+# These are needed whether EC/or otherwise
+ceph osd crush rule create-replicated $mydclass default host $mydclass
+ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+ceph osd pool application enable 3rep-bench rbd
+ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
+
 if [[ $rbdresponse =~ [yY] ]]
 then
 
@@ -313,12 +320,28 @@ then
     ceph osd pool create cephfs_data $powertwo $powertwo replicated $mydclass
     ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass
     ceph fs new cephfs cephfs_metadata cephfs_data
+
     sleep 1s
     salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
+    sleep 3s
+    salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@`hostname`'
     sleep 3s
     salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
     echo -n Waiting while MDS creates metadata
     while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
+    echo ""
+     echo "Making Sure MDS are started"
+    while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ];
+    do
+	echo -n '.'
+ 	salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@`hostname`'
+    	sleep 3s
+    	salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
+	sleep 10s
+    done
+	echo "settling for 15s"
+	sleep 15s
+    echo ""
     if [[ $testecresponse =~ [yY] ]]
     then
         #create EC CephFS pool and mount it
@@ -339,9 +362,9 @@ then
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-        ssh root@$k "mkdir -p /mnt/cephfs;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;mkdir -p /mnt/cephfs/$k"
+        ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
         echo Bind mount the per loadgen cephfs path to a universal path
-        ssh root@$k "mkdir -p /mnt/benchmaster; mount --bind /mnt/cephfs/$k /mnt/benchmaster"
+        ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then
             ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
@@ -425,7 +448,7 @@ do
 			#start fio server on each loadgen
 			#echo "Killing any running fio on $l and starting fio servers in screen session"
         		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server --eta=never\n\""
+			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
 			sleep 1s
 			commandset=("--client=$l" )
 			command+="$commandset jobfiles/$i "
