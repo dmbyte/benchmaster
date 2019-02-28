@@ -447,7 +447,8 @@ do
 		do
 			#start fio server on each loadgen
 			#echo "Killing any running fio on $l and starting fio servers in screen session"
-        		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
+      ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
+      ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
 			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
 			sleep 1s
 			commandset=("--client=$l" )
