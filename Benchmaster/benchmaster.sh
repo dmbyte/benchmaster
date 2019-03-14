@@ -155,11 +155,12 @@ shopt -u extglob
 rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawlen=${#rawavail}
 rawspace=${rawavail}
+
 #echo rawspace=$rawspace
 #echo rawunit=kb
 
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
-allocunit=$((rawspace / 1024 / 1024 / allocdiv))
+allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv))
 if [ $allocunit -gt $[1500*loadgencnt] ];then
     allocunit=$[1500*loadgencnt]
 fi
