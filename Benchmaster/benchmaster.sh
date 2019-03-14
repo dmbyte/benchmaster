@@ -524,6 +524,7 @@ fi
 if [ $# -eq 1 ]; then
         case "$1" in
             "prepare")
+                infogather
                 prepare
                 RETVAL=1
             ;;
