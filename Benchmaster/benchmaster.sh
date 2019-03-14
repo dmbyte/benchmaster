@@ -528,6 +528,7 @@ if [ $# -eq 1 ]; then
                 RETVAL=1
             ;;
             "dojobs")
+                infogather
                 runjobs
                 RETVAL=1
             ;;
@@ -548,6 +549,6 @@ else
     infogather
     prepare
     runjobs
-    cleanup
+    #cleanup
 fi
 exit $RETVAL
