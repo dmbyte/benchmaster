@@ -41,6 +41,7 @@ do
   read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
 done
 # echo "selected device is ${dlist[$deviceclassresponse]}"
+mydclass=${dlist[$deviceclassresponse]}
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -152,7 +153,9 @@ shopt -u extglob
 # need. It is basically the divisor for usable space from the raw space.
 #e.g. rbd on ec and replication needs 5 units.
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
-rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
+#rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
+rawavail=0
+for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_used'`;do rawavail=$((rawavail + $i));done
 rawlen=${#rawavail}
 rawspace=${rawavail}
 
@@ -160,7 +163,7 @@ rawspace=${rawavail}
 #echo rawunit=kb
 
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
-allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv))
+allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv / loadgencnt))
 if [ $allocunit -gt $[1500*loadgencnt] ];then
     allocunit=$[1500*loadgencnt]
 fi
@@ -241,7 +244,7 @@ echo "** Creating Pool(s)"
 #TODO: create EC pool definition that fits in 4 node (3&1?)
 #TODO: look at size of ceph and create pools and images of appropriate size (no more than 150GB per image)
 #      and set environment variables for filesize used in .fio files
-mydclass=${dlist[$deviceclassresponse]}
+
 countdevinclass=`ceph osd tree |grep $mydclass|wc -l`
 testpower=0
 powertwo=0
