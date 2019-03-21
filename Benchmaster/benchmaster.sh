@@ -163,7 +163,7 @@ rawspace=${rawavail}
 #echo rawunit=kb
 
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
-allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv / loadgencnt))
+allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv ))
 if [ $allocunit -gt $[1500*loadgencnt] ];then
     allocunit=$[1500*loadgencnt]
 fi
