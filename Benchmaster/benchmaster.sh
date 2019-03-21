@@ -477,35 +477,36 @@ fi
 #cleanup section
 cleanup() {
 
-for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
-salt '*' cmd.run 'systemctl stop ceph-mds.target'
-for i in `seq 0 20`;
-do
-  ceph mds fail $i
-done
-ceph fs rm cephfs --yes-i-really-mean-it
-ceph tell mon.* injectargs --mon-allow-pool-delete=true
-ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
-ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
-salt '*' cmd.run 'systemctl start ceph-mds.target'
+  for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+  salt '*' cmd.run 'systemctl stop ceph-mds.target'
+  for i in `seq 0 20`;
+  do
+    ceph mds fail $i
+  done
+  ceph tell mon.* injectargs --mon-allow-pool-delete=true
+  ceph fs rm cephfs --yes-i-really-mean-it
+  ceph fs rm_data_pool cephfs eccephfsbench
+  ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
+  ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
+  ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
+  salt '*' cmd.run 'systemctl start ceph-mds.target'
 
-ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
-ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
-ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
-ceph fs rm_data_pool cephfs eccephfsbench
-ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
-ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
-ceph osd erasure-code-profile rm ecbench
-ceph osd crush rule rm ecrbdbench
-ceph osd crush rule rm eccephfsbench
-ceph osd crush rule rm ssd
-ceph osd crush rule rm hdd
+  ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
+  ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
+  ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
+  ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
+  ceph osd erasure-code-profile rm ecbench
+  ceph osd crush rule rm ecrbdbench
+  ceph osd crush rule rm eccephfsbench
+  ceph osd crush rule rm ssd
+  ceph osd crush rule rm hdd
 
-for k in `cat loadgens.lst`
-do
-        ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
-done
-}
+  for k in `cat loadgens.lst`
+  do
+          ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
+  done
+  }
+
 
 usage() {
     echo "Usage: $0 [prepare | clean]"
