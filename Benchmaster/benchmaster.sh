@@ -86,10 +86,10 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
 	testlist="rep-rbd ec-rbd $testlist"
-        allocdiv=$[allocdiv+2]
+        allocdiv=$[allocdiv+5]
     else
 	testlist="rep-rbd $testlist"
-        allocdiv=$[allocdiv+1]
+        allocdiv=$[allocdiv+3]
     fi
 
 fi
@@ -99,10 +99,10 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
 	testlist="rep-cephfs ec-cephfs $testlist"
-        allocdiv=$[allocdiv+2]
+        allocdiv=$[allocdiv+5]
     else
 	testlist="rep-cephfs $testlist"
-        allocdiv=$[allocdiv+1]
+        allocdiv=$[allocdiv+3]
 
     fi
 
@@ -111,7 +111,7 @@ fi
 if [[ "$s3response" =~ [yY] ]]
 then
 	testlist="s3 $testlist"
-        allocdiv=$[allocdiv+1]
+        allocdiv=$[allocdiv+3]
 
 fi
 
