@@ -17,13 +17,16 @@ def search_files(directory, extension='benchmark'):
                 mylist.append(os.path.join(dirpath, name))
     return mylist
 
-
+results=[]
 filelist = search_files(clivar1)
 for thisproto in protocols:
     for iopat in iopattern:
-        print "Proto = %s     IOPAT= %s" %(thisproto, iopat)
+        #print "Proto = %s     IOPAT= %s" %(thisproto, iopat)
         for thisfile in filelist:
+	    thisresult=[]
             myjson = ''
+            xlabels=''
+            yvalues=''
             tempfileinfo = thisfile.split("/")
             testname = tempfileinfo[len(tempfileinfo)-1]
             if thisproto in testname and iopat in testname:
@@ -88,4 +91,12 @@ for thisproto in protocols:
                         readiops = fiodata['client_stats'][x]['read']['iops']
                         readavglat = fiodata['client_stats'][x]['read'][lat_key]['mean']/latdiv
                         readmaxlat = fiodata['client_stats'][x]['read'][lat_key]['max']/latdiv
-                        print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' % (testname, bso, protection, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat)
+                        print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' % (protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat)
+                        thisresult= [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat]
+			results.append(thisresult)
+print 'total results: %s' %(len(results))
+#from sets import Set
+myset=set()
+for x in results:
+        myset.add(x[1]+x[3])	
+print 'myset: %s' %(myset) 
