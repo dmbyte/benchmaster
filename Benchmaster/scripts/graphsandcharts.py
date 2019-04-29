@@ -110,11 +110,13 @@ from operator import itemgetter
 for filter in myset:
     import matplotlib.pyplot as plt
     plt.figure()
+    fig,ax1=plt.subplots()
     barheight=[]
     tick_label=[]
     graphlines=[]
     gc=1
     graphlist=[]
+    latpoints=[]
     for rline in results:
         if filter == rline[1]+rline[3]:
 	    graphlist.append(rline)
@@ -126,22 +128,30 @@ for filter in myset:
 	if sline[5] != "100":
     	    barheight.append(int(sline[11]))
 	    graphlines.append(gc)
-	    tick_label.append(str(sline[2]) +'\n'+ sline[0]+'\nwrite')
+	    tick_label.append(str(sline[2]) +'KiB\n'+ sline[0]+'\nWrite')
+            latpoints.append(int(sline[13]))
 	    gc=gc+1
 	    colors.append("red")
 	if sline[5] != "0":
 	    barheight.append(int(sline[15]))
 	    graphlines.append(gc)
-	    tick_label.append(str(sline[2]) +'\n'+ sline[0]+'\nread')
+	    tick_label.append(str(sline[2]) +'KiB\n'+ sline[0]+'\nRead')
+            latpoints.append(int(sline[17]))
 	    gc=gc+1
     	    colors.append("green")
-    plt.bar(graphlines,barheight,width=0.8, tick_label=tick_label, color=colors)
-    title=sline[1]+' '+sline[3]
-    plt.title(title.upper)
-    plt.ylabel('MiB/s')
-    plt.savefig("/root/"+filter+".png")		
-    plt.clf
-    plt.close
+    ax1.bar(graphlines,barheight,width=0.8, tick_label=tick_label, color=colors)
+    rawtitle=str(sline[1]+' '+sline[3])
+    mytitle=rawtitle.upper()
+    plt.title(mytitle)
+    ax1.set_ylabel('Throughput (MiB/s)')
+    ax2=ax1.twinx()
+    ax2.scatter(graphlines,latpoints,color='blue')
+    ax2.set_ylabel('Average Latency (ms)',color='blue')
+    fig.tight_layout()
+    plt.savefig("/root/"+filter+".png")	
+    plt.cla()
+    plt.clf()
+    plt.close('all')
     del plt
     del barheight
     del graphlines
