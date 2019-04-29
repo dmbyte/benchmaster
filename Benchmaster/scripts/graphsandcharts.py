@@ -48,19 +48,19 @@ for thisproto in protocols:
                 jobspernode = fiodata['client_stats'][0]['job options']['numjobs']
                 bs = fiodata['client_stats'][0]['job options']['bs']
                 if bs == '64M':
-                    bso = '65536'
+                    bso = 65536
                 elif bs == '4M':
-                    bso = '4096'
+                    bso = 4096
                 elif bs == '1M':
-                    bso = '1024'
+                    bso = 1024
                 elif bs == '64k':
-                    bso = '64'
+                    bso = 64
                 elif bs == '8k':
-                    bso = '8'
+                    bso = 8
                 elif bs == '4k':
-                    bso = '4'
+                    bso = 4
                 else:
-                    bso = 'broken'
+                    bso = 0
 
                 if testname[0:2] == 'ec':
                     protection = 'EC 3+1'
@@ -91,12 +91,59 @@ for thisproto in protocols:
                         readiops = fiodata['client_stats'][x]['read']['iops']
                         readavglat = fiodata['client_stats'][x]['read'][lat_key]['mean']/latdiv
                         readmaxlat = fiodata['client_stats'][x]['read'][lat_key]['max']/latdiv
-                        print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' % (protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat)
+                        #print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' % (protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat)
                         thisresult= [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat]
 			results.append(thisresult)
-print 'total results: %s' %(len(results))
+#print 'total results: %s' %(len(results))
 #from sets import Set
 myset=set()
 for x in results:
         myset.add(x[1]+x[3])	
-print 'myset: %s' %(myset) 
+#print 'myset: %s' %(myset) 
+
+
+#time to make some graphs
+#need to cycle through the myset list and pull out all metrics from results that meet the protocol and pattern, sort it by io size and then graph it
+import matplotlib
+matplotlib.use('Agg')
+from operator import itemgetter
+for filter in myset:
+    import matplotlib.pyplot as plt
+    plt.figure()
+    barheight=[]
+    tick_label=[]
+    graphlines=[]
+    gc=1
+    graphlist=[]
+    for rline in results:
+        if filter == rline[1]+rline[3]:
+	    graphlist.append(rline)
+    sortgraph=graphlist.sort(key=itemgetter(2))
+    for sline in graphlist:
+        print sline
+	colors=[]
+	# print 'barheight: %s' %(int(sline[15]))
+	if sline[5] != "100":
+    	    barheight.append(int(sline[11]))
+	    graphlines.append(gc)
+	    tick_label.append(str(sline[2]) +'\n'+ sline[0]+'\nwrite')
+	    gc=gc+1
+	    colors.append("red")
+	if sline[5] != "0":
+	    barheight.append(int(sline[15]))
+	    graphlines.append(gc)
+	    tick_label.append(str(sline[2]) +'\n'+ sline[0]+'\nread')
+	    gc=gc+1
+    	    colors.append("green")
+    plt.bar(graphlines,barheight,width=0.8, tick_label=tick_label, color=colors)
+    title=sline[1]+' '+sline[3]
+    plt.title(title.upper)
+    plt.ylabel('MiB/s')
+    plt.savefig("/root/"+filter+".png")		
+    plt.clf
+    plt.close
+    del plt
+    del barheight
+    del graphlines
+    del tick_label
+    del sortgraph
