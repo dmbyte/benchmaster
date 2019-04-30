@@ -2,6 +2,12 @@
 import json
 import sys
 import os
+
+if len(sys.argv) != 2:
+    print 'USAGE: bmcharts.py <path to benchmaster results>'
+    sys.exit(1)
+
+
 protocols = ['rbd', 'cephfs']
 iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread',
              'mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
