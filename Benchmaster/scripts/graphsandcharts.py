@@ -111,6 +111,7 @@ for filter in myset:
     import matplotlib.pyplot as plt
     plt.figure()
     fig,ax1=plt.subplots()
+    fig.set_size_inches(9,6)
     barheight=[]
     tick_label=[]
     graphlines=[]
@@ -128,7 +129,7 @@ for filter in myset:
 	if sline[5] != "100":
     	    barheight.append(int(sline[11]))
 	    graphlines.append(gc)
-	    tick_label.append(str(sline[2]) +'KiB\n'+ sline[0]+'\nWrite')
+	    tick_label.append(str(sline[2]) +'KiB\n'+ 'Write\n'+sline[0])
             latpoints.append(int(sline[13]))
 	    gc=gc+1
 	    colors.append("red")
@@ -145,8 +146,9 @@ for filter in myset:
     plt.title(mytitle)
     ax1.set_ylabel('Throughput (MiB/s)')
     ax2=ax1.twinx()
-    ax2.scatter(graphlines,latpoints,color='blue')
+    ax2.plot(graphlines,latpoints,color='blue',marker='_',linestyle='',markersize=340/len(graphlines))
     ax2.set_ylabel('Average Latency (ms)',color='blue')
+    ax2.tick_params(colors='blue')
     fig.tight_layout()
     plt.savefig("/root/"+filter+".png")	
     plt.cla()
