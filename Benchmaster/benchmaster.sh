@@ -41,7 +41,6 @@ do
   read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
 done
 # echo "selected device is ${dlist[$deviceclassresponse]}"
-mydclass=${dlist[$deviceclassresponse]}
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -87,10 +86,11 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
 	testlist="rep-rbd ec-rbd $testlist"
+        allocdiv=$[allocdiv+5]
     else
 	testlist="rep-rbd $testlist"
+        allocdiv=$[allocdiv+3]
     fi
-        allocdiv=$[allocdiv+5]
 
 fi
 
@@ -99,18 +99,19 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
 	testlist="rep-cephfs ec-cephfs $testlist"
+        allocdiv=$[allocdiv+5]
     else
 	testlist="rep-cephfs $testlist"
+        allocdiv=$[allocdiv+3]
 
     fi
 
-        allocdiv=$[allocdiv+5]
 
 fi
 if [[ "$s3response" =~ [yY] ]]
 then
 	testlist="s3 $testlist"
-        allocdiv=$[allocdiv+2]
+        allocdiv=$[allocdiv+3]
 
 fi
 
@@ -155,25 +156,28 @@ shopt -u extglob
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
 #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawavail=0
-for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_used'`;do rawavail=$((rawavail + $i));done
+mydclass=${dlist[$deviceclassresponse]}
+for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`;do rawavail=$((rawavail + $i));done
+echo rawavail=$rawavail
 rawlen=${#rawavail}
 rawspace=${rawavail}
-
-#echo rawspace=$rawspace
-#echo rawunit=kb
-
+echo rawspace=$rawspace
+echo rawunit=mb
+echo allocdiv=$allocdiv
 loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
-allocunit=$((rawspace * .75 / 1024 / 1024 / allocdiv / loadgencnt))
-if [ $allocunit -gt $[1500*loadgencnt] ];then
-    allocunit=$[1500*loadgencnt]
+allocunit=$((rawspace / 1024 / 1024 / loadgencnt ))
+echo firstallocunit=$allocunit
+if [ $allocunit -gt $[1500 * $allocdiv] ];then
+    allocunit=$[1500 * $allocdiv]
 fi
-#echo allocunit=$allocunit
-rbdimgsize=$[allocunit/(loadgencnt*10)]
-fsize=`echo "scale=0; $rbdimgsize * .9" | bc`
+echo allocunit=$allocunit GB
+rbdimgsize=`echo "scale=0; $allocunit/($allocdiv*10)* .7"|bc`
+rbdimgsize=${rbdimgsize%.*}
+#rbdimgsize=$[allocunit/(allocdiv*10)] 
+echo rbdimgsize=$rbdimgsize GB
+fsize=$rbdimgsize  
 filesize=${fsize%.*}
-
-
-
+echo fsize=$fsize GB
 
 }
 
@@ -244,7 +248,6 @@ echo "** Creating Pool(s)"
 #TODO: create EC pool definition that fits in 4 node (3&1?)
 #TODO: look at size of ceph and create pools and images of appropriate size (no more than 150GB per image)
 #      and set environment variables for filesize used in .fio files
-
 countdevinclass=`ceph osd tree |grep $mydclass|wc -l`
 testpower=0
 powertwo=0
@@ -324,7 +327,12 @@ then
     ceph osd pool create cephfs_data $powertwo $powertwo replicated $mydclass
     ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass
     ceph fs new cephfs cephfs_metadata cephfs_data
-
+### ADDED for replica testing
+    sleep 30s
+    ceph osd pool set cephfs_data size 3
+    ceph osd pool set cephfs_metadata size 3
+    sleep 60s
+####
     sleep 1s
     salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
     sleep 3s
@@ -451,8 +459,8 @@ do
 		do
 			#start fio server on each loadgen
 			#echo "Killing any running fio on $l and starting fio servers in screen session"
-      ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-      ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
+        		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
+			ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
 			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
 			sleep 1s
 			commandset=("--client=$l" )
@@ -480,36 +488,35 @@ fi
 #cleanup section
 cleanup() {
 
-  for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
-  salt '*' cmd.run 'systemctl stop ceph-mds.target'
-  for i in `seq 0 20`;
-  do
-    ceph mds fail $i
-  done
-  ceph tell mon.* injectargs --mon-allow-pool-delete=true
-  ceph fs rm cephfs --yes-i-really-mean-it
-  ceph fs rm_data_pool cephfs eccephfsbench
-  ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
-  ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
-  ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
-  salt '*' cmd.run 'systemctl start ceph-mds.target'
+for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+salt '*' cmd.run 'systemctl stop ceph-mds.target'
+for i in `seq 0 20`;
+do
+  ceph mds fail $i
+done
+ceph tell mon.* injectargs --mon-allow-pool-delete=true
+ceph fs rm cephfs --yes-i-really-mean-it
+ceph fs rm_data_pool cephfs eccephfsbench
+ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
+ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
+ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
+salt '*' cmd.run 'systemctl start ceph-mds.target'
 
-  ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
-  ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
-  ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
-  ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
-  ceph osd erasure-code-profile rm ecbench
-  ceph osd crush rule rm ecrbdbench
-  ceph osd crush rule rm eccephfsbench
-  ceph osd crush rule rm ssd
-  ceph osd crush rule rm hdd
+ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
+ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
+ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
+ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
+ceph osd erasure-code-profile rm ecbench
+ceph osd crush rule rm ecrbdbench
+ceph osd crush rule rm eccephfsbench
+ceph osd crush rule rm ssd
+ceph osd crush rule rm hdd
 
-  for k in `cat loadgens.lst`
-  do
-          ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
-  done
-  }
-
+for k in `cat loadgens.lst`
+do
+        ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
+done
+}
 
 usage() {
     echo "Usage: $0 [prepare | clean]"
@@ -529,12 +536,12 @@ if [ $# -eq 1 ]; then
         case "$1" in
             "prepare")
                 infogather
-                prepare
+		prepare
                 RETVAL=1
             ;;
             "dojobs")
                 infogather
-                runjobs
+		runjobs
                 RETVAL=1
             ;;
             "clean")
@@ -557,3 +564,4 @@ else
     #cleanup
 fi
 exit $RETVAL
+
