@@ -4,6 +4,10 @@ import matplotlib
 import json
 import sys
 import os
+#set graph colors
+readbar = "#02A49C"
+writebar = "#A7A9AC"
+hline = "#0007B0"
 
 if len(sys.argv) != 2:
     print 'USAGE: bmcharts.py <path to benchmaster results>'
@@ -11,8 +15,7 @@ if len(sys.argv) != 2:
 
 
 protocols = ['rbd', 'cephfs']
-iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread',
-             'mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
+iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread','mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
 clivar1 = sys.argv[1]
 
 
@@ -108,7 +111,7 @@ for thisproto in protocols:
 myset = set()
 for x in results:
     myset.add(x[1]+x[3])
-print 'myset: %s' % (myset)
+print 'myset: %s' %(myset)
 
 
 # time to make some graphs
@@ -116,6 +119,7 @@ print 'myset: %s' % (myset)
 matplotlib.use('Agg')
 for filter in myset:
     import matplotlib.pyplot as plt
+    from matplotlib.font_manager import FontProperties
     plt.figure()
     fig, ax1 = plt.subplots()
     fig.set_size_inches(9, 6)
@@ -141,40 +145,41 @@ for filter in myset:
             tick_label.append(str(sline[2]) + 'KiB\n' + 'Write\n'+sline[0])
             latpoints.append(int(sline[13]))
             gc = gc+1
-            colors.append("red")
+            colors.append(readbar)
         if sline[5] != "0":
             barheight.append(int(sline[15]))
             graphlines.append(gc)
             tick_label.append(str(sline[2]) + 'KiB\n' + 'Read\n'+sline[0])
             latpoints.append(int(sline[17]))
             gc = gc+1
-            colors.append("green")
+            colors.append(writebar)
         if sline[5] == "100":
-            columnheaders = ['Protection', 'Read BW',
-                             'Read IOPS', 'Read Average Latency']
-            myrow = [sline[0], sline[15], int(sline[16]), sline[17]]
+            columnheaders=['Protection','Read BW (MiB/s)','Read IOPS', 'Read Average Latency (ms)']
+            myrow=[sline[0],int(sline[15]),int(sline[16]),int(sline[17]*10)/10]
         elif sline[5] == "0":
-            columnheaders = ['Protection', 'Write BW',
-                             'Write IOPS', 'Write Average Latency']
-            myrow = [sline[0], sline[11], int(sline[12]), sline[13]]
+            columnheaders=['Protection','Write BW (MiB/s)','Write IOPS', 'Write Average Latency (ms)']
+            myrow=[sline[0],int(sline[11]),int(sline[12]),int(sline[13]*10)/10]
         else:
-            columnheaders = ['Write BW', 'Write IOPS', 'Write Average Latency',
-                             'Protection', 'Read Average Latency', 'Read IOPS', 'Read BW']
-            myrow = [sline[11], int(sline[12]), sline[13],
-                     sline[0], sline[17], sline[16], sline[15]]
+            columnheaders=['Write BW (MiB/s)','Write IOPS','Write Average\nLatency (ms)','Protection','Read Average\nLatency (ms)', 'Read IOPS', 'Read BW (MiB/s)']
+            myrow=[int(sline[11]),int(sline[12]),int(sline[13]*10)/10,sline[0],int(sline[17]*10)/10,int(sline[16]),int(sline[15])]
         trows.append(myrow)
-    ax1.bar(graphlines, barheight, width=0.8,
-            tick_label=tick_label, color=colors)
+    ax1.bar(graphlines, barheight, width=0.8,tick_label=tick_label, color=colors)
     rawtitle = str(sline[1]+' '+sline[3])
     mytitle = rawtitle.upper()
     plt.title(mytitle)
+    plt.rcParams['xtick.labelsize']=8
     ax1.set_ylabel('Throughput (MiB/s)')
     ax2 = ax1.twinx()
-    ax2.plot(graphlines, latpoints, color='blue', marker='_', linestyle='', markersize=340/len(graphlines))
-    ax2.set_ylabel('Average Latency (ms)', color='blue')
-    ax2.tick_params(colors='blue')
+    ax2.plot(graphlines, latpoints, color=hline, marker='_', linestyle='', markersize=340/len(graphlines))
+    ax2.set_ylabel('Average Latency (ms)', color=hline)
+    ax2.tick_params(colors=hline)
     fig.tight_layout()
-    the_table = plt.table(cellText=trows, colLabels=columnheaders, loc='bottom', bbox=[0.0, -(.25+len(trows)*.09), 1, len(trows)*.09])
+    the_table = plt.table(cellLoc='center',cellText=trows, colLabels=columnheaders, loc='bottom', bbox=[0.0, -(.25+len(trows)*.15), 1, len(trows)*.15])
+    for (row, col), cell in the_table.get_celld().items():
+        if (row == 0) or (col == -1):
+    	    cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+    the_table.auto_set_font_size(False)
+    the_table.set_fontsize(6)
     plt.subplots_adjust(bottom=.5)
     plt.savefig("/root/"+filter+".png")
     plt.cla()
