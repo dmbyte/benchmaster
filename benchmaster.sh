@@ -220,6 +220,14 @@ done
 }
 prepare() {
 
+echo "** Installing some pre-requisites on the admin node"
+    if [ !`command -v bc`]; then 
+        echo "** Installing bc on this node; zypper -q in -y bc &>/dev/null"
+    fi
+    if [ !`command -v fio`]; then 
+        echo "** Installing fio on this node; zypper -q in -y fio &>/dev/null"
+    fi
+
 echo "** Ensuring ceph-common is installed"
 for m in `cat loadgens.lst`
 do
@@ -231,6 +239,13 @@ if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q i
 for m in `cat loadgens.lst`
 do
     ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
+done
+
+echo "** Ensuring screen is installed"
+if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi
+for m in `cat loadgens.lst`
+do
+    ssh root@$m 'if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi'
 done
 
 echo "** Copying /etc/ceph directory to test nodes"

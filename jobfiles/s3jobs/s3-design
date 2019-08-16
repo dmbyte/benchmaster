@@ -1,0 +1,14 @@
+need to get the RGW targets
+need to configure 2 users.  1 for replica pool, 1 for EC pool
+need to get the secret keys
+set http_mode = s3
+http_host = rgw servers
+http_s3_key - secret key
+http_s3_keyid - keyid
+
+need to set placement policies for the users
+when jobs are run, they need to be as equally distributed among loadgens as possible
+queuedepth=1 for s3 jobs, scale with numjobs
+    Do cli passed options overwrite jobfile options?
+
+will need to add the s3 pools to the cleanup
