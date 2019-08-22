@@ -390,8 +390,8 @@ then
     for k in `cat loadgens.lst`
     do
         ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
-        echo Bind mount the per loadgen cephfs path to a universal path
-        ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
+        echo Host: $k - Bind mount the per loadgen cephfs path to a universal path
+        ssh root@$k "sleep 1s;mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then
             ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
