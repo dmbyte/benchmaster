@@ -41,6 +41,7 @@ do
   read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
 done
 # echo "selected device is ${dlist[$deviceclassresponse]}"
+mydclass=${dlist[$deviceclassresponse]}
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -66,6 +67,10 @@ then
 else
     isaresponse="n"
 fi
+#get count of OSD nodes and ask user for M & K settings
+#make sure M & K are recorded in the cephinfo.txt file
+
+classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
 
 #while [[ $s3response != [yYnN] ]];
 #do
@@ -136,7 +141,7 @@ fi
 
 #This function prepares the environment
 #Get a list of the monitor hosts IP addresses.  Needed for CephFS mounting
-monlist=`ceph mon dump|grep ^[0-9]|cut -f2 -d" "|cut -f1 -d":"|paste -s -d ','`
+monlist=`ceph mon dump|grep ^[0-9]|cut -f2 -d" "|cut -f2 -d":"|paste -s -d ','`
 #Get the secret key from the ceph.client.admin.keyring file for CephFS mounting
 secretkey=`cat /etc/ceph/ceph.client.admin.keyring |grep key`
 shopt -s extglob
@@ -156,8 +161,8 @@ shopt -u extglob
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
 #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawavail=0
-mydclass=${dlist[$deviceclassresponse]}
-for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`;do rawavail=$((rawavail + $i));done
+
+rawavail=$(ceph osd df -f json | jq '[.nodes[] |select (.device_class == "hdd") | .kb_avail] | add')
 echo rawavail=$rawavail
 rawlen=${#rawavail}
 rawspace=${rawavail}
