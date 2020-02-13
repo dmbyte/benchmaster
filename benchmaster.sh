@@ -24,6 +24,17 @@ if [ ! -f osdnodes.lst ];then
         echo "   per line."
         exit
 fi
+echo "** Installing some pre-requisites on the admin node"
+if [ !`command -v bc` ]; then
+	echo "** Installing bc on this node"
+	zypper -q in -y bc &>/dev/null
+fi
+if [ !`command -v fio` ]; then
+	echo "** Installing fio on this node"
+	zypper -q in -y fio &>/dev/null
+fi
+
+
 dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
 dclasses=${dclasslist//,/ }
 howmany() { echo $#; }
@@ -41,7 +52,11 @@ do
   read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
 done
 # echo "selected device is ${dlist[$deviceclassresponse]}"
-mydclass=${dlist[$deviceclassresponse]}
+
+while [[ $replicacount != [123] ]];
+do
+	read -r -p "Select the number of replicas (1,2,3)" replicacount
+done
 
 while [[ $rbdresponse != [yYnN] ]];
 do
@@ -57,7 +72,10 @@ while [[ $testecresponse != [yYnN] ]];
 do
     read -r -p "Do you want to test Erasure Coding? [y/N] " testecresponse
 done
+#get count of OSD nodes and ask user for M & K settings	
+#make sure M & K are recorded in the cephinfo.txt file	
 
+classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
 if [[ $testecresponse =~ [yY] ]]
 then
     while [[ $isaresponse != [yYnN] ]];
@@ -67,10 +85,6 @@ then
 else
     isaresponse="n"
 fi
-#get count of OSD nodes and ask user for M & K settings
-#make sure M & K are recorded in the cephinfo.txt file
-
-classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
 
 #while [[ $s3response != [yYnN] ]];
 #do
@@ -116,7 +130,7 @@ fi
 if [[ "$s3response" =~ [yY] ]]
 then
 	testlist="s3 $testlist"
-        allocdiv=$[allocdiv+3]
+        allocdiv=$[allocdiv+5]
 
 fi
 
@@ -161,15 +175,16 @@ shopt -u extglob
 # RBD images will be (# of allocation units)* alloc_size/nodecount * 10
 #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
 rawavail=0
-
-rawavail=$(ceph osd df -f json | jq '[.nodes[] |select (.device_class == "hdd") | .kb_avail] | add')
+mydclass=${dlist[$deviceclassresponse]}
+for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`;do rawavail=$((rawavail + $i));done
 echo rawavail=$rawavail
 rawlen=${#rawavail}
 rawspace=${rawavail}
 echo rawspace=$rawspace
 echo rawunit=mb
 echo allocdiv=$allocdiv
-loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
+#loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
+loadgencnt=`wc -l loadgens.lst|cut -f1 -d" "`
 allocunit=$((rawspace / 1024 / 1024 / loadgencnt ))
 echo firstallocunit=$allocunit
 if [ $allocunit -gt $[1500 * $allocdiv] ];then
@@ -224,15 +239,6 @@ do
 done
 }
 prepare() {
-
-echo "** Installing some pre-requisites on the admin node"
-    if [ !`command -v bc`]; then 
-        echo "** Installing bc on this node; zypper -q in -y bc &>/dev/null"
-    fi
-    if [ !`command -v fio`]; then 
-        echo "** Installing fio on this node; zypper -q in -y fio &>/dev/null"
-    fi
-
 echo "** Ensuring ceph-common is installed"
 for m in `cat loadgens.lst`
 do
@@ -282,8 +288,9 @@ echo "DETERMINED PG Count to be $powertwo"
 # These are needed whether EC/or otherwise
 ceph osd crush rule create-replicated $mydclass default host $mydclass
 ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+ceph osd pool set 3rep-bench size $replicacount
 ceph osd pool application enable 3rep-bench rbd
-ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
+ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=6 m=3 crush-device-class=$mydclass
 
 if [[ $rbdresponse =~ [yY] ]]
 then
@@ -291,6 +298,7 @@ then
     #create a pool of size 3 for initial benchmarks
     ceph osd crush rule create-replicated $mydclass default host $mydclass
     ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+    ceph osd pool set 3rep-bench size $replicacount
     ceph osd pool application enable 3rep-bench rbd
     echo settling the system for 30 seconds
     sleep 30s
@@ -312,7 +320,7 @@ then
     if [[ $testecresponse =~ [yY] ]]
     then
         #make EC RBD pool and mount it
-        ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
+        ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=6 m=3 crush-device-class=$mydclass
         ceph osd pool create ecrbdbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
         ceph osd pool set ecrbdbench allow_ec_overwrites true
         ceph osd pool application enable ecrbdbench rbd
@@ -349,8 +357,8 @@ then
     ceph fs new cephfs cephfs_metadata cephfs_data
 ### ADDED for replica testing
     sleep 30s
-    ceph osd pool set cephfs_data size 3
-    ceph osd pool set cephfs_metadata size 3
+    ceph osd pool set cephfs_data size $replicacount
+    ceph osd pool set cephfs_metadata size $replicacount
     sleep 60s
 ####
     sleep 1s
@@ -394,9 +402,9 @@ then
     echo "Mounting cephfs and creating a directory for each loadgen node"
     for k in `cat loadgens.lst`
     do
-        ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
-        echo Host: $k - Bind mount the per loadgen cephfs path to a universal path
-        ssh root@$k "sleep 1s;mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
+        ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey,nocrc,readdir_max_bytes=4104304,readdir_max_entries=8192;sleep 1s;mkdir -p /mnt/cephfs/$k"
+        echo Bind mount the per loadgen cephfs path to a universal path
+        ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
         if [[ $testecresponse =~ [yY] ]]
         then
             ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
@@ -491,6 +499,7 @@ do
 	        echo "Letting system settle for 30s"
 	        sleep 30s
             fi
+	#read -r -p "press enter to proceed to next job" garbage
 	done
 done
 
@@ -509,7 +518,7 @@ fi
 cleanup() {
 
 for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
-salt '*' cmd.run 'systemctl stop ceph-mds.target'
+salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
 for i in `seq 0 20`;
 do
   ceph mds fail $i
@@ -520,7 +529,7 @@ ceph fs rm_data_pool cephfs eccephfsbench
 ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
 ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
 ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
-salt '*' cmd.run 'systemctl start ceph-mds.target'
+salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
 
 ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
 ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
@@ -584,4 +593,3 @@ else
     #cleanup
 fi
 exit $RETVAL
-
