@@ -6,23 +6,18 @@ infogather() {
     allocdiv=0
     ramptime=600
     runtime=1800
-    #This function sets up the environment
-    #Start by gathering information
 
-    #check if loadgens.lst file is present
-    if [ ! -f loadgens.lst ];then
-        echo "!! You must create the loadgens.lst file for this to work."
-        echo "   The file should contain a list of all the loadgen nodes with"
-        echo "   one per line."
-        exit
-    fi
+    #Validate environment and general details
+    #check if loadgens.lst and osdnodes.lst files are present
+    for file in loadgens.lst osdnodes.lst; do
+        if [ ! -f $file ];then
+            echo "!! You must create the $file file for this to work."
+            echo "   The file should contain a list of all the ${file%%s.osd} nodes"
+            echo "   with one per line."
+            exit
+        fi
+    done
 
-    if [ ! -f osdnodes.lst ];then
-        echo "!! You must create the osdnodes.lst file for this to work."
-        echo "   The file should contain a list of all the osd nodes with one"
-        echo "   per line."
-        exit
-    fi
     dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
     dclasses=${dclasslist//,/ }
     howmany() { echo $#; }
