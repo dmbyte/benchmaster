@@ -215,7 +215,7 @@ prepare() {
     for m in `cat loadgens.lst`
     do
         echo "** Now copying public key to $m."
-        echo "   You'll be prompted for the root password on that host."
+        echo "   You may be prompted for the root password on that host."
         ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa.pub root@$m &>/dev/null
     done
 
@@ -230,33 +230,24 @@ prepare() {
         fi
     done
 
-    echo "** Ensuring ceph-common is installed"
-    for m in `cat loadgens.lst`
-    do
-        ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
-    done
 
-    echo "** Ensuring fio is installed"
-    if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi
-    for m in `cat loadgens.lst`
-    do
-        ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
+    echo "** Ensuring ceph-common, fio and screen are installed on all nodes, and copying /etc/ceph to test nodes"
+    #Ensure screen and fio is installed on admin node
+    for pkg in screen fio; do
+        if [ ! `command -v $pkg` ]; then
+            echo "** Installing $pkg on $HOSTNAME";zypper -q in -y $pkg &>/dev/null
+        fi
     done
-
-    echo "** Ensuring screen is installed"
     if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi
-    for m in `cat loadgens.lst`
-    do
+    #Perform work on all test nodes
+    for m in `cat loadgens.lst`; do
+        ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
+        ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
         ssh root@$m 'if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi'
-    done
-
-    echo "** Copying /etc/ceph directory to test nodes"
-    for m in `cat loadgens.lst`
-    do
         ssh root@$m 'mkdir -p /etc/ceph'
-        scp -r /etc/ceph/* root@$m:/etc/ceph/
+        scp -qr /etc/ceph/* root@$m:/etc/ceph/
     done
-    echo ""
+    echo
 
     echo "** Creating Pool(s)"
     #create pools
@@ -356,7 +347,7 @@ prepare() {
         salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
         echo -n Waiting while MDS creates metadata
         while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
-        echo ""
+        echo
          echo "Making Sure MDS are started"
         while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ];
         do
@@ -368,7 +359,7 @@ prepare() {
         done
     	echo "settling for 15s"
     	sleep 15s
-        echo ""
+        echo
         if [[ $testecresponse =~ [yY] ]]
         then
             #create EC CephFS pool and mount it
