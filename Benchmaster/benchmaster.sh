@@ -211,9 +211,7 @@ prepare() {
             exit
         fi
     done
-}
 
-prepare() {
     echo "** Ensuring ceph-common is installed"
     for m in `cat loadgens.lst`
     do
