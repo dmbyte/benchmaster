@@ -490,31 +490,38 @@ runjobs() {
 
 #cleanup section
 cleanup() {
-
-    for i in `cat loadgens.lst`;do ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster';done
+    # Remove RBD and CephFS devices
+    for i in `cat loadgens.lst`; do
+        ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster'
+    done
+    # Stop MDS targets
     salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
     for i in `seq 0 20`;
     do
       ceph mds fail $i
     done
+    # Delete CephFS test pools
     ceph tell mon.* injectargs --mon-allow-pool-delete=true
     ceph fs rm cephfs --yes-i-really-mean-it
     ceph fs rm_data_pool cephfs eccephfsbench
     ceph osd pool delete eccephfsbench eccephfsbench --yes-i-really-really-mean-it  &>/dev/null
     ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
     ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
+    # Restart MDS targets
     salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
-
+    # Delete other test pools
     ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
     ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
     ceph osd pool delete ecrbdbench ecrbdbench --yes-i-really-really-mean-it  &>/dev/null
     ceph tell mon.* injectargs --mon-allow-pool-delete=false  &>/dev/null
+    # Delete test profiles and rules
     ceph osd erasure-code-profile rm ecbench
     ceph osd crush rule rm ecrbdbench
     ceph osd crush rule rm eccephfsbench
     ceph osd crush rule rm ssd
     ceph osd crush rule rm hdd
 
+    # Kill all fio and screen processes
     for k in `cat loadgens.lst`
     do
             ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
