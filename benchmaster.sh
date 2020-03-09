@@ -20,12 +20,12 @@ infogather() {
 
     echo "** Installing some pre-requisites on the admin node"
     if [ !`command -v bc` ]; then
-    	echo "** Installing bc on this node"
-    	zypper -q in -y bc &>/dev/null
+        echo "** Installing bc on this node"
+        zypper -q in -y bc &>/dev/null
     fi
     if [ !`command -v fio` ]; then
-    	echo "** Installing fio on this node"
-    	zypper -q in -y fio &>/dev/null
+        echo "** Installing fio on this node"
+        zypper -q in -y fio &>/dev/null
     fi
 
     #make the results directory
@@ -46,12 +46,13 @@ infogather() {
             ;;
     esac
     echo
+    echo
 
     #Determine tests to be run
     echo " ----  Select Tests  ----"
     testlist=""
     while [[ $replicacount != [123] ]]; do
-    	read -r -p "Select the number of replicas (1,2,3)" replicacount
+        read -r -p "Select the number of replicas (1,2,3)" replicacount
     done
     # Check EC test first
     read -r -p "Do you want to test Erasure Coding (Y/[N]) " testecresponse
@@ -122,8 +123,8 @@ infogather() {
 
     #Gather test information
     echo " ----  Build Test Parameters  ----"
-    #get count of OSD nodes and ask user for M & K settings	
-    #make sure M & K are recorded in the cephinfo.txt file	
+    #get count of OSD nodes and ask user for M & K settings    
+    #make sure M & K are recorded in the cephinfo.txt file    
     classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
 
     #Determine the number of device classes
@@ -196,8 +197,7 @@ infogather() {
 
 prepare() {
     #check name resolution for loadgens
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         if ! host $m &>/dev/null;then
             echo "!! Host $m does not resolve to an IP.  Please fix and re-run"
             exit
@@ -212,15 +212,13 @@ prepare() {
     fi
 
     #copy public key to loadgens
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         echo "** Now copying public key to $m."
         echo "   You may be prompted for the root password on that host."
         ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa.pub root@$m &>/dev/null
     done
 
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         ssh root@$m 'exit'
         if [ $? -ne 0 ]
         then
@@ -257,9 +255,9 @@ prepare() {
     countdevinclass=`ceph osd tree |grep $mydclass|wc -l`
     testpower=0
     powertwo=0
-    until [ "$powertwo" -ge $((countdevinclass*50)) ];do
-      powertwo=$((2**testpower))
-      testpower=$((testpower+1))
+    until [ "$powertwo" -ge $((countdevinclass*50)) ]; do
+        powertwo=$((2**testpower))
+        testpower=$((testpower+1))
     done
     powertwo=$((powertwo/2))
     echo "DETERMINED PG Count to be $powertwo"
@@ -283,18 +281,18 @@ prepare() {
         sleep 30s
         #create 10 rbds per host of the size set in rbdimgesize
         echo "Creating RBDs for testing"
-        for i in `cat loadgens.lst`
-        do
-          for j in {0..9}
-          do
-            echo "rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G"
-            rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G
-          done
+        for i in `cat loadgens.lst`; do
+            for j in {0..9}; do
+                echo "rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G"
+                rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G
+            done
         done
 
         #map the 10 replicated rbds per host
         echo "Mapping the Replicated RBDs"
-        for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done";done
+        for k in `cat loadgens.lst`; do
+            ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done"
+        done
 
         if [[ $testecresponse =~ [yY] ]]
         then
@@ -305,12 +303,18 @@ prepare() {
             ceph osd pool application enable ecrbdbench rbd
 
             #create rbd images for ecrbd
-            for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j;done;done
+            for i in `cat loadgens.lst`; do
+                for j in {0..9}; do
+                    rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j
+                done
+            done
             sleep 10s
 
             #map the 10 ec rbds per host
             echo "Mapping the EC RBDs"
-            for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done";done
+            for k in `cat loadgens.lst`; do
+                ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done"
+            done
             #need to initialize the complete RBD size that is provisioned to fix bad read results
         fi
     fi
@@ -319,8 +323,7 @@ prepare() {
     then
         #delete the existing CephFS
         salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
-        for i in `seq 0 20`;
-        do
+        for i in `seq 0 20`; do
           ceph mds fail $i
         done
         ceph fs rm cephfs --yes-i-really-mean-it
@@ -346,19 +349,22 @@ prepare() {
         sleep 3s
         salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
         echo -n Waiting while MDS creates metadata
-        while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
+        while [ `ceph mds stat|grep creating|wc -l` -gt 0 ]; do
+            echo -n "."
+            sleep 2s
+        done
         echo
-         echo "Making Sure MDS are started"
+           echo "Making Sure MDS are started"
         while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ];
         do
-    	echo -n '.'
-     	salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@`hostname`'
-        	sleep 3s
-        	salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
-    	sleep 10s
+        echo -n '.'
+         salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@`hostname`'
+            sleep 3s
+            salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
+        sleep 10s
         done
-    	echo "settling for 15s"
-    	sleep 15s
+        echo "settling for 15s"
+        sleep 15s
         echo
         if [[ $testecresponse =~ [yY] ]]
         then
@@ -378,8 +384,7 @@ prepare() {
         fi
         #mount cephfs on each node
         echo "Mounting cephfs and creating a directory for each loadgen node"
-        for k in `cat loadgens.lst`
-        do
+        for k in `cat loadgens.lst`; do
             ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey,nocrc,readdir_max_bytes=4104304,readdir_max_entries=8192;sleep 1s;mkdir -p /mnt/cephfs/$k"
             echo Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
@@ -422,62 +427,61 @@ runjobs() {
 
     echo " ">>results/cephinfo.txt
     echo "**** OSD Info ****" >>results/cephinfo.txt
-    for j in `cat osdnodes.lst`; do ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt;done
+    for j in `cat osdnodes.lst`; do
+        ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt
+    done
     fi
-    for  test in $testlist
-    do
-    	case $test in
-    	rep-rbd)
-    		export fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
-    		export size=100%
-    		;;
-    	ec-rbd)
-    		export fiotarget="/dev/rbd10:/dev/rbd11:/dev/rbd12:/dev/rbd13:/dev/rbd14:/dev/rbd15:/dev/rbd16:/dev/rbd17:/dev/rbd18:/dev/rbd19"
-    		export size=100%
-    		;;
-    	rep-cephfs)
-    		export fiotarget='/mnt/benchmaster/0.fil:/mnt/benchmaster/1.fil:/mnt/benchmaster/2.fil:/mnt/benchmaster/3.fil:/mnt/benchmaster/4.fil:/mnt/benchmaster/5.fil:/mnt/benchmaster/6.fil:/mnt/benchmaster/7.fil:/mnt/benchmaster/8.fil:/mnt/benchmaster/9.fil'
-    		export size=$(($filesize * 10))G
-    		;;
-    	ec-cephfs)
-    		export fiotarget='/mnt/benchmaster/ec/0.fil:/mnt/benchmaster/ec/1.fil:/mnt/benchmaster/ec/2.fil:/mnt/benchmaster/ec/3.fil:/mnt/benchmaster/ec/4.fil:/mnt/benchmaster/ec/5.fil:/mnt/benchmaster/ec/6.fil:/mnt/benchmaster/ec/7.fil:/mnt/benchmaster/ec/8.fil:/mnt/benchmaster/ec/9.fil'
-    		export size=$(($filesize * 10))G
-    		;;
-    	esac
+    for  test in $testlist; do
+        case $test in
+        rep-rbd)
+            export fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
+            export size=100%
+            ;;
+        ec-rbd)
+            export fiotarget="/dev/rbd10:/dev/rbd11:/dev/rbd12:/dev/rbd13:/dev/rbd14:/dev/rbd15:/dev/rbd16:/dev/rbd17:/dev/rbd18:/dev/rbd19"
+            export size=100%
+            ;;
+        rep-cephfs)
+            export fiotarget='/mnt/benchmaster/0.fil:/mnt/benchmaster/1.fil:/mnt/benchmaster/2.fil:/mnt/benchmaster/3.fil:/mnt/benchmaster/4.fil:/mnt/benchmaster/5.fil:/mnt/benchmaster/6.fil:/mnt/benchmaster/7.fil:/mnt/benchmaster/8.fil:/mnt/benchmaster/9.fil'
+            export size=$(($filesize * 10))G
+            ;;
+        ec-cephfs)
+            export fiotarget='/mnt/benchmaster/ec/0.fil:/mnt/benchmaster/ec/1.fil:/mnt/benchmaster/ec/2.fil:/mnt/benchmaster/ec/3.fil:/mnt/benchmaster/ec/4.fil:/mnt/benchmaster/ec/5.fil:/mnt/benchmaster/ec/6.fil:/mnt/benchmaster/ec/7.fil:/mnt/benchmaster/ec/8.fil:/mnt/benchmaster/ec/9.fil'
+            export size=$(($filesize * 10))G
+            ;;
+        esac
 
-    	for i in $jobfiles
-    	do
+        for i in $jobfiles; do
                 skiplist=`head -1 $i|grep skip`
-                if ! [[ " $skiplist " =~ " $test " ]];then
-            	i=${i##*/}
-    		jobname=${i%.*}
-    		export curjob=$test-$jobname
-    		echo "*** Running job: $curjob ***"
-    		mkdir -p results/$curjob
-    	        sleep 1s
-    		commandset=""
-    		command=""
-    		for l in $loadgens
-    		do
-    			#start fio server on each loadgen
-    			#echo "Killing any running fio on $l and starting fio servers in screen session"
-            		ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-    			ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
-    			ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
-    			sleep 1s
-    			commandset=("--client=$l" )
-    			command+="$commandset jobfiles/$i "
-    		done
-    		curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
-    			fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
-    	        echo "Letting system settle for 30s"
-    	        sleep 30s
+                if ! [[ " $skiplist " =~ " $test " ]]; then
+                i=${i##*/}
+            jobname=${i%.*}
+            export curjob=$test-$jobname
+            echo "*** Running job: $curjob ***"
+            mkdir -p results/$curjob
+                sleep 1s
+            commandset=""
+            command=""
+            for l in $loadgens; do
+                #start fio server on each loadgen
+                #echo "Killing any running fio on $l and starting fio servers in screen session"
+                    ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
+                ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
+                ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
+                sleep 1s
+                commandset=("--client=$l" )
+                command+="$commandset jobfiles/$i "
+            done
+            curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
+                fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
+                echo "Letting system settle for 30s"
+                sleep 30s
                 fi
-    	#read -r -p "press enter to proceed to next job" garbage
-    	done
+        #read -r -p "press enter to proceed to next job" garbage
+        done
     done
 
-    if [ "$sendresult" == 1 ];then
+    if [ "$sendresult" == 1 ]; then
         shopt -s extglob
         id=`ceph status|grep id|cut -f2 -d":"`
         id="${id##*( )}"
@@ -496,9 +500,8 @@ cleanup() {
     done
     # Stop MDS targets
     salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
-    for i in `seq 0 20`;
-    do
-      ceph mds fail $i
+    for i in `seq 0 20`; do
+        ceph mds fail $i
     done
     # Delete CephFS test pools
     ceph tell mon.* injectargs --mon-allow-pool-delete=true
@@ -522,9 +525,8 @@ cleanup() {
     ceph osd crush rule rm hdd
 
     # Kill all fio and screen processes
-    for k in `cat loadgens.lst`
-    do
-            ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
+    for k in `cat loadgens.lst`; do
+        ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
     done
 }
 
@@ -547,7 +549,7 @@ if [ $# -eq 1 ]; then
     case "$1" in
         "prepare")
                 infogather
-    		prepare
+                prepare
                 RETVAL=1
                 ;;
         "dojobs")
