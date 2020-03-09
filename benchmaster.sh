@@ -32,9 +32,11 @@ infogather() {
     if [ ! -d results ];then
         mkdir -p results
     fi
-    echo -n "Describe the Cluster:  "
+    #get description and prompt for upload
+    echo " ----  Starting Benchmaster  ----"
+    echo -n "Describe the cluster/test:  "
     read cdesc
-    read -r -p "Do you want to upload the results? [y/N] " response
+    read -r -p "Do you want to upload the results? (Y/[N]) " response
     case "$response" in
         [yY][eE][sS]|[yY])
             sendresult=1
@@ -44,12 +46,11 @@ infogather() {
             ;;
     esac
     echo
-    echo
 
     #Determine tests to be run
+    echo " ----  Select Tests  ----"
     testlist=""
-    while [[ $replicacount != [123] ]];
-    do
+    while [[ $replicacount != [123] ]]; do
     	read -r -p "Select the number of replicas (1,2,3)" replicacount
     done
     # Check EC test first
@@ -119,24 +120,25 @@ infogather() {
     #esac
     echo
 
+    #Gather test information
+    echo " ----  Build Test Parameters  ----"
     #get count of OSD nodes and ask user for M & K settings	
     #make sure M & K are recorded in the cephinfo.txt file	
     classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
 
+    #Determine the number of device classes
     dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
     dclasses=${dclasslist//,/ }
     howmany() { echo $#; }
     classcount=`howmany $dclasses`
     ctemp=1
-    for i in $dclasses
-    do
+    for i in $dclasses; do
             echo "$ctemp: $i"
             dlist[$ctemp]=$i
             let "ctemp=ctemp+1"
     done
     inputs=`seq 1 $classcount|xargs`
-    while [[ $deviceclassresponse != [$inputs] ]];
-    do
+    while [[ $deviceclassresponse != [$inputs] ]]; do
       read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
     done
     # echo "selected device is ${dlist[$deviceclassresponse]}"
@@ -164,7 +166,9 @@ infogather() {
     #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
     rawavail=0
     mydclass=${dlist[$deviceclassresponse]}
-    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`;do rawavail=$((rawavail + $i));done
+    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`; do
+        rawavail=$((rawavail + $i))
+    done
     echo rawavail=$rawavail
     rawlen=${#rawavail}
     rawspace=${rawavail}
@@ -175,7 +179,7 @@ infogather() {
     loadgencnt=`wc -l loadgens.lst|cut -f1 -d" "`
     allocunit=$((rawspace / 1024 / 1024 / loadgencnt ))
     echo firstallocunit=$allocunit
-    if [ $allocunit -gt $[1500 * $allocdiv] ];then
+    if [ $allocunit -gt $[1500 * $allocdiv] ]; then
         allocunit=$[1500 * $allocdiv]
     fi
     echo allocunit=$allocunit GB
@@ -186,6 +190,8 @@ infogather() {
     fsize=$rbdimgsize
     filesize=${fsize%.*}
     echo fsize=$fsize GB
+    echo " ----  Finished Gathering Information  ----"
+    echo
 }
 
 prepare() {
