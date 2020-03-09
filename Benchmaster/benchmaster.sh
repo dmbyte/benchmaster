@@ -34,8 +34,8 @@ infogather() {
             sendresult=0
             ;;
     esac
-    echo ""
-    echo ""
+    echo
+    echo
 
     #Determine tests to be run
     echo " ----  Select Tests  ----"
@@ -115,15 +115,13 @@ infogather() {
     howmany() { echo $#; }
     classcount=`howmany $dclasses`
     ctemp=1
-    for i in $dclasses
-    do
+    for i in $dclasses; do
         echo "$ctemp: $i"
         dlist[$ctemp]=$i
         let "ctemp=ctemp+1"
     done
     inputs=`seq 1 $classcount|xargs`
-    while [[ $deviceclassresponse != [$inputs] ]];
-    do
+    while [[ $deviceclassresponse != [$inputs] ]]; do
         read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
     done
     # echo "selected device is ${dlist[$deviceclassresponse]}"
@@ -151,8 +149,7 @@ infogather() {
     #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
     rawavail=0
     mydclass=${dlist[$deviceclassresponse]}
-    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`
-    do
+    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`; do
         rawavail=$((rawavail + $i))
     done
     echo rawavail=$rawavail
@@ -181,8 +178,7 @@ infogather() {
 
 prepare() {
     #check name resolution for loadgens
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         if ! host $m &>/dev/null;then
             echo "!! Host $m does not resolve to an IP.  Please fix and re-run"
             exit
@@ -197,15 +193,13 @@ prepare() {
     fi
 
     #copy public key to loadgens
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         echo "** Now copying public key to $m."
         echo "   You may be prompted for the root password on that host."
         ssh-copy-id -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa.pub root@$m &>/dev/null
     done
 
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         ssh root@$m 'exit'
         if [ $? -ne 0 ]
         then
@@ -221,8 +215,7 @@ prepare() {
         echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null
     fi
     #Perform work on all test nodes
-    for m in `cat loadgens.lst`
-    do
+    for m in `cat loadgens.lst`; do
         ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
         ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
         ssh root@$m 'mkdir -p /etc/ceph'
@@ -238,7 +231,7 @@ prepare() {
     countdevinclass=`ceph osd tree |grep $mydclass|wc -l`
     testpower=0
     powertwo=0
-    until [ "$powertwo" -ge $((countdevinclass*50)) ];do
+    until [ "$powertwo" -ge $((countdevinclass*50)) ]; do
         powertwo=$((2**testpower))
         testpower=$((testpower+1))
     done
@@ -261,10 +254,8 @@ prepare() {
         sleep 30s
         #create 10 rbds per host of the size set in rbdimgesize
         echo "Creating RBDs for testing"
-        for i in `cat loadgens.lst`
-        do
-            for j in {0..9}
-            do
+        for i in `cat loadgens.lst`; do
+            for j in {0..9}; do
                 echo "rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G"
                 rbd create 3rep-bench/$i-$j --size=${rbdimgsize}G
             done
@@ -272,7 +263,9 @@ prepare() {
 
         #map the 10 replicated rbds per host
         echo "Mapping the Replicated RBDs"
-        for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done";done
+        for k in `cat loadgens.lst`; do 
+            ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done"
+        done
 
         if [[ $testecresponse =~ [yY] ]]
         then
@@ -283,12 +276,18 @@ prepare() {
             ceph osd pool application enable ecrbdbench rbd
 
             #create rbd images for ecrbd
-            for i in `cat loadgens.lst`;do for j in {0..9};do rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j;done;done
+            for i in `cat loadgens.lst`; do
+                for j in {0..9}; do
+                    rbd create --size=${rbdimgsize}G --data-pool ecrbdbench 3rep-bench/ec$i-$j
+                done
+            done
             sleep 10s
 
             #map the 10 ec rbds per host
             echo "Mapping the EC RBDs"
-            for k in `cat loadgens.lst`;do ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done";done
+            for k in `cat loadgens.lst`; do
+                ssh root@$k "for l in {0..9};do rbd map 3rep-bench/ec$k-\$l;done"
+            done
             #need to initialize the complete RBD size that is provisioned to fix bad read results
         fi
     fi
@@ -297,8 +296,7 @@ prepare() {
     then
         #delete the existing CephFS
         salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
-        for i in `seq 0 20`;
-        do
+        for i in `seq 0 20`; do
             ceph mds fail $i
         done
         ceph fs rm cephfs --yes-i-really-mean-it
@@ -324,7 +322,10 @@ prepare() {
         sleep 3s
         salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
         echo -n Waiting while MDS creates metadata
-        while [ `ceph mds stat|grep creating|wc -l` -gt 0 ];do echo -n ".";sleep 2s;done
+        while [ `ceph mds stat|grep creating|wc -l` -gt 0 ]; do
+            echo -n "."
+            sleep 2s
+        done
         echo
             echo "Making Sure MDS are started"
         while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ];
@@ -356,8 +357,7 @@ prepare() {
         fi
         #mount cephfs on each node
         echo "Mounting cephfs and creating a directory for each loadgen node"
-        for k in `cat loadgens.lst`
-        do
+        for k in `cat loadgens.lst`; do
             ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
             echo Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
@@ -399,10 +399,11 @@ runjobs() {
 
     echo " ">>results/cephinfo.txt
     echo "**** OSD Info ****" >>results/cephinfo.txt
-    for j in `cat osdnodes.lst`; do ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt;done
+    for j in `cat osdnodes.lst`; do
+        ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt
+    done
     fi
-    for  test in $testlist
-    do
+    for  test in $testlist; do
         case $test in
         rep-rbd)
             export fiotarget="/dev/rbd0:/dev/rbd1:/dev/rbd2:/dev/rbd3:/dev/rbd4:/dev/rbd5:/dev/rbd6:/dev/rbd7:/dev/rbd8:/dev/rbd9"
@@ -422,8 +423,7 @@ runjobs() {
             ;;
         esac
 
-        for i in $jobfiles
-        do
+        for i in $jobfiles; do
                 skiplist=`head -1 $i|grep skip`
                 if ! [[ " $skiplist " =~ " $test " ]];then
                 i=${i##*/}
@@ -434,8 +434,7 @@ runjobs() {
                 sleep 1s
             commandset=""
             command=""
-            for l in $loadgens
-            do
+            for l in $loadgens; do
                 #start fio server on each loadgen
                 #echo "Killing any running fio on $l and starting fio servers in screen session"
                     ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
@@ -467,14 +466,12 @@ runjobs() {
 #cleanup section
 cleanup() {
     # Remove RBD and CephFS devices
-    for i in `cat loadgens.lst`
-    do 
+    for i in `cat loadgens.lst`; do
         ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster'
     done
     # Stop MDS targets
     salt '*' cmd.run 'systemctl stop ceph-mds.target'
-    for i in `seq 0 20`;
-    do
+    for i in `seq 0 20`; do
         ceph mds fail $i
     done
     # Delete CephFS test pools
@@ -499,8 +496,7 @@ cleanup() {
     ceph osd crush rule rm hdd
 
     # Kill all fio and screen processes
-    for k in `cat loadgens.lst`
-    do
+    for k in `cat loadgens.lst`; do
             ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
     done
 }
