@@ -21,9 +21,11 @@ infogather() {
     if [ ! -d results ];then
         mkdir -p results
     fi
-    echo -n "Describe the Cluster:  "
+    #get description and prompt for upload
+    echo " ----  Starting Benchmaster  ----"
+    echo -n "Describe the cluster/test:  "
     read cdesc
-    read -r -p "Do you want to upload the results? [y/N] " response
+    read -r -p "Do you want to upload the results? (Y/[N]) " response
     case "$response" in
         [yY][eE][sS]|[yY])
             sendresult=1
@@ -36,6 +38,7 @@ infogather() {
     echo ""
 
     #Determine tests to be run
+    echo " ----  Select Tests  ----"
     testlist=""
     # Check EC test first
     read -r -p "Do you want to test Erasure Coding (Y/[N]) " testecresponse
@@ -104,6 +107,9 @@ infogather() {
     #esac
     echo
 
+    #Gather test information
+    echo " ----  Build Test Parameters  ----"
+    #Determine the number of device classes
     dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
     dclasses=${dclasslist//,/ }
     howmany() { echo $#; }
@@ -145,7 +151,10 @@ infogather() {
     #rawavail=`ceph osd df -f json | jq .summary.total_kb_avail`
     rawavail=0
     mydclass=${dlist[$deviceclassresponse]}
-    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`;do rawavail=$((rawavail + $i));done
+    for i in `ceph osd df -f json | jq '.nodes[] |select (.device_class == "'$mydclass'")'|jq '.kb_avail'`
+    do
+        rawavail=$((rawavail + $i))
+    done
     echo rawavail=$rawavail
     rawlen=${#rawavail}
     rawspace=${rawavail}
@@ -166,6 +175,8 @@ infogather() {
     fsize=$rbdimgsize
     filesize=${fsize%.*}
     echo fsize=$fsize GB
+    echo " ----  Finished Gathering Information  ----"
+    echo
 }
 
 prepare() {
