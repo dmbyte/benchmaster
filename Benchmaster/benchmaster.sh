@@ -17,24 +17,23 @@ infogather() {
             exit
         fi
     done
-
-    dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
-    dclasses=${dclasslist//,/ }
-    howmany() { echo $#; }
-    classcount=`howmany $dclasses`
-    ctemp=1
-    for i in $dclasses
-    do
-        echo "$ctemp: $i"
-        dlist[$ctemp]=$i
-        let "ctemp=ctemp+1"
-    done
-    inputs=`seq 1 $classcount|xargs`
-    while [[ $deviceclassresponse != [$inputs] ]];
-    do
-        read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
-    done
-    # echo "selected device is ${dlist[$deviceclassresponse]}"
+    #make the results directory
+    if [ ! -d results ];then
+        mkdir -p results
+    fi
+    echo -n "Describe the Cluster:  "
+    read cdesc
+    read -r -p "Do you want to upload the results? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            sendresult=1
+            ;;
+        *)
+            sendresult=0
+            ;;
+    esac
+    echo ""
+    echo ""
 
     while [[ $rbdresponse != [yYnN] ]];
     do
@@ -105,24 +104,23 @@ infogather() {
             allocdiv=$[allocdiv+3]
     fi
 
-    echo -n "Describe the Cluster:  "
-    read cdesc
-    read -r -p "Do you want to upload the results? [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            sendresult=1
-            ;;
-        *)
-            sendresult=0
-            ;;
-    esac
-    echo ""
-    echo ""
-
-    #make the results directory
-    if [ ! -d results ];then
-        mkdir -p results
-    fi
+    dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
+    dclasses=${dclasslist//,/ }
+    howmany() { echo $#; }
+    classcount=`howmany $dclasses`
+    ctemp=1
+    for i in $dclasses
+    do
+        echo "$ctemp: $i"
+        dlist[$ctemp]=$i
+        let "ctemp=ctemp+1"
+    done
+    inputs=`seq 1 $classcount|xargs`
+    while [[ $deviceclassresponse != [$inputs] ]];
+    do
+        read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
+    done
+    # echo "selected device is ${dlist[$deviceclassresponse]}"
 
     #This function prepares the environment
     #Get a list of the monitor hosts IP addresses.  Needed for CephFS mounting
