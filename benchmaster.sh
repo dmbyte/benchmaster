@@ -46,84 +46,82 @@ infogather() {
     echo
     echo
 
+    #Determine tests to be run
+    testlist=""
     while [[ $replicacount != [123] ]];
     do
     	read -r -p "Select the number of replicas (1,2,3)" replicacount
     done
+    # Check EC test first
+    read -r -p "Do you want to test Erasure Coding (Y/[N]) " testecresponse
+    case $testecresponse in
+        Y|y)
+            testecresponse="Y"
+            read -r -p "Do you want to use the ISA plugin for Erasure Coding (Y/[N]) " isaresponse
+            case $isaresponse in
+                Y|y)
+                    isaresponse="Y"
+                    ecplugin="isa"
+                    ;;
+                *)
+                    isaresponse="N"
+                    ecplugin="jerasure"
+                    ;;
+            esac
+            ;;
+        *)
+            testecresponse="N"
+            isaresponse="N"
+            ;;
+    esac
+    read -r -p "Do you want to test RBD? (Y/[N]) " rbdresponse
+    case $rbdresponse in
+        Y|y)
+                rbdresponse="Y"
+                if [[ $testecresponse = "Y" ]]; then
+                    testlist="rep-rbd ec-rbd $testlist"
+                    allocdiv=$[allocdiv+5]
+                else
+                    testlist="rep-rbd $testlist"
+                    allocdiv=$[allocdiv+3]
+                fi
+                ;;
+        *)
+               rbdresponse="N"
+                ;;
+    esac
+    read -r -p "Do you want to test CephFS (Y/[N]) " cephfsresponse
+    case $cephfsresponse in
+        Y|y)
+               cephfsresponse="Y"
+                if [[ $testecresponse = "Y" ]]; then
+                    testlist="rep-cephfs ec-cephfs $testlist"
+                    allocdiv=$[allocdiv+5]
+                else
+                    testlist="rep-cephfs $testlist"
+                    allocdiv=$[allocdiv+3]
+                fi
+                ;;
+        *)
+               cephfsresponse="N"
+                ;;
+    esac
+    #read -r -p "Do you want to test S3 (Y/[N]) " s3response
+    #case $s3sresponse in
+    #    Y|y)
+    #           s3sresponse="Y"
+    #           testlist="s3 $testlist"
+    #           allocdiv=$[allocdiv+5]
+    #           ;;
+    #    *)
+    #           s3sresponse="Y"
+    #           ;;
+    #esac
+    echo
 
-    while [[ $rbdresponse != [yYnN] ]];
-    do
-        read -r -p "Do you want to test RBD? [y/N] " rbdresponse
-    done
-
-    while [[ $cephfsresponse != [yYnN] ]];
-    do
-    	read -r -p "Do you want to test CephFS? [y/N] " cephfsresponse
-    done
-
-    while [[ $testecresponse != [yYnN] ]];
-    do
-        read -r -p "Do you want to test Erasure Coding? [y/N] " testecresponse
-    done
     #get count of OSD nodes and ask user for M & K settings	
     #make sure M & K are recorded in the cephinfo.txt file	
-
     classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
-    if [[ $testecresponse =~ [yY] ]]
-    then
-        while [[ $isaresponse != [yYnN] ]];
-        do
-    	read -r -p "Do you want to use the ISA plugin for Erasure Coding? [y/N] " isaresponse
-        done
-    else
-        isaresponse="n"
-    fi
-
-    #while [[ $s3response != [yYnN] ]];
-    #do
-    #        read -r -p "Do you want to test S3? [y/N] " s3response
-    #done
-
-    if [[ $isaresponse =~ [yY] ]]
-    then
-    	ecplugin="isa"
-    else
-            ecplugin="jerasure"
-    fi
-
-    testlist=""
-    if [[ $rbdresponse =~ [yY] ]]
-    then
-        if [[ $testecresponse =~ [yY] ]]
-        then
-    	testlist="rep-rbd ec-rbd $testlist"
-            allocdiv=$[allocdiv+5]
-        else
-    	testlist="rep-rbd $testlist"
-            allocdiv=$[allocdiv+3]
-        fi
-
-    fi
-
-    if [[ $cephfsresponse =~ [yY] ]]
-    then
-        if [[ $testecresponse =~ [yY] ]]
-        then
-    	testlist="rep-cephfs ec-cephfs $testlist"
-            allocdiv=$[allocdiv+5]
-        else
-    	testlist="rep-cephfs $testlist"
-            allocdiv=$[allocdiv+3]
-
-        fi
-
-    fi
-    if [[ "$s3response" =~ [yY] ]]
-    then
-    	testlist="s3 $testlist"
-            allocdiv=$[allocdiv+5]
-
-    fi
 
     dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
     dclasses=${dclasslist//,/ }
