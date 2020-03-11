@@ -2,113 +2,34 @@
 debug=0
 #debug doesn't collect system info.
 
-infogather() {
-    allocdiv=0
-    ramptime=600
-    runtime=1800
+#defaults
+cdesc=benchmaster_$(date +%Y-%M-%d_%H%M%S)
+replicacount=1
+sendresults=N
+testecresponse=N
+ecplugin=N
+isaresponse=N
+rbdresponse=N
+cephfsresponse=N
+s3response=N
+testlist=""
+allocdiv=0
+ramptime=600
+runtime=1800
 
-    #Validate environment and general details
-    #check if loadgens.lst and osdnodes.lst files are present
-    for file in loadgens.lst osdnodes.lst; do
-        if [ ! -f $file ];then
-            echo "!! You must create the $file file for this to work."
-            echo "   The file should contain a list of all the ${file%%s.osd} nodes"
-            echo "   with one per line."
-            exit
-        fi
-    done
-    #make the results directory
-    if [ ! -d results ];then
-        mkdir -p results
+optcfg () {
+    local option=$1
+    if [[ ${opts[option]} == Y ]]
+    then
+        opts[option]=N
+    else
+        opts[option]=Y
     fi
-    #get description and prompt for upload
-    echo " ----  Starting Benchmaster  ----"
-    echo -n "Describe the cluster/test:  "
-    read cdesc
-    read -r -p "Do you want to upload the results? (Y/[N]) " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            sendresult=1
-            ;;
-        *)
-            sendresult=0
-            ;;
-    esac
-    echo
-    echo
+}
 
-    #Determine tests to be run
-    echo " ----  Select Tests  ----"
-    testlist=""
-    # Check EC test first
-    read -r -p "Do you want to test Erasure Coding (Y/[N]) " testecresponse
-    case $testecresponse in
-        Y|y)
-            testecresponse="Y"
-            read -r -p "Do you want to use the ISA plugin for Erasure Coding (Y/[N]) " isaresponse
-            case $isaresponse in
-                Y|y)
-                    isaresponse="Y"
-                    ecplugin="isa"
-                    ;;
-                *)
-                    isaresponse="N"
-                    ecplugin="jerasure"
-                    ;;
-            esac
-            ;;
-        *)
-            testecresponse="N"
-            isaresponse="N"
-            ;;
-    esac
-    read -r -p "Do you want to test RBD? (Y/[N]) " rbdresponse
-    case $rbdresponse in
-        Y|y)
-                rbdresponse="Y"
-                if [[ $testecresponse = "Y" ]]; then
-                    testlist="rep-rbd ec-rbd $testlist"
-                    allocdiv=$[allocdiv+5]
-                else
-                    testlist="rep-rbd $testlist"
-                    allocdiv=$[allocdiv+3]
-                fi
-                ;;
-        *)
-               rbdresponse="N"
-                ;;
-    esac
-    read -r -p "Do you want to test CephFS (Y/[N]) " cephfsresponse
-    case $cephfsresponse in
-        Y|y)
-               cephfsresponse="Y"
-                if [[ $testecresponse = "Y" ]]; then
-                    testlist="rep-cephfs ec-cephfs $testlist"
-                    allocdiv=$[allocdiv+5]
-                else
-                    testlist="rep-cephfs $testlist"
-                    allocdiv=$[allocdiv+3]
-                fi
-                ;;
-        *)
-               cephfsresponse="N"
-                ;;
-    esac
-    #read -r -p "Do you want to test S3 (Y/[N]) " s3response
-    #case $s3sresponse in
-    #    Y|y)
-    #           s3sresponse="Y"
-    #       testlist="s3 $testlist"
-    #           allocdiv=$[allocdiv+3]
-    #           ;;
-    #    *)
-    #           s3sresponse="Y"
-    #           ;;
-    #esac
-    echo
-
-    #Gather test information
-    echo " ----  Build Test Parameters  ----"
+choosedevclass () {
+    deviceclassresponse=""
+    local option=$1
     #Determine the number of device classes
     dclasslist=`ceph osd crush class ls -f json|tr -d '[]"'`
     dclasses=${dclasslist//,/ }
@@ -124,8 +45,215 @@ infogather() {
     while [[ $deviceclassresponse != [$inputs] ]]; do
         read -r -p "Pick the class of device to test against [1 - $classcount]" deviceclassresponse
     done
-    # echo "selected device is ${dlist[$deviceclassresponse]}"
+    opts[option]=${dlist[$deviceclassresponse]}
+}
 
+infogather() {
+    #Validate environment and general details
+    #check if loadgens.lst and osdnodes.lst files are present
+    for file in loadgens.lst osdnodes.lst; do
+        if [ ! -f $file ];then
+            echo "!! You must create the $file file for this to work."
+            echo "   The file should contain a list of all the ${file%%s.osd} nodes"
+            echo "   with one per line."
+            exit
+        fi
+    done
+    #make the results directory
+    if [ ! -d results ];then
+        mkdir -p results
+    fi
+
+    #gather test parameters
+    while true; do
+        options=("Description,${opts[0]:-$cdesc}" \
+                 "Replica Count (1-3),${opts[1]:-$replicacount}" \
+                 "Erasure Coding,${opts[2]:-$testecresponse}" \
+                 "Use ISA plugin for EC?,${opts[3]:-$isaresponse}" \
+                 "Test RBD,${opts[4]:-$rbdresponse}" \
+                 "Test CephFS,${opts[5]:-$cephfsresponse}" \
+                 "Test S3,${opts[6]:-$s3response}" \
+                 "Device Class,${opts[7]:-"ACTION REQUIRED"}" \
+                 "Upload Results?,${opts[8]:-$sendresults}" \
+                 "Start Test")
+        clear
+        echo "Benchmaster:"
+        echo
+        echo " --- Test Configuration ---"
+        echo
+        count=0
+        for i in "${options[@]}"; do
+            if [[ "${i%%,*}" == "Start Test" ]]; then
+                echo
+                printf "%3s %-15s\n" "${count})" "${i%%,*}"
+            else
+                if [[ $count == 0 ]]; then
+                    printf "%3s %-25s:   %-8s\n" "${count})" "${i%%,*}" "${i##*,}"
+                    echo
+                elif [[ $count == 1 ]]; then
+                    printf "%3s %-25s:   %-8s\n" "${count})" "${i%%,*}" "${i##*,}"
+                else
+                    if [[ "${i##*,}" == "Y" ]]; then
+                        status=Enabled
+                    elif [[ "${i##*,}" == "N" ]]; then
+                        status=Disabled
+                    else
+                        status="${i##*,}"
+                    fi
+                    printf "%3s %-25s:   %-8s\n" "${count})" "${i%%,*}" "$status"
+                fi
+            fi
+            let count++
+        done
+        echo
+        read -r -p "Select item to enable/disable, or begin test ('A' to abort): " response
+        case $response in
+                0)
+                    # Test description
+                    read -r -p "Describe the cluster/test: " opts[0]
+                    cdesc=opts[0]
+                    ;;
+                1)
+                    # Replica count
+                    # Reset replica count to zero before looping for a new number
+                    opts[1]=0
+                    while [[ ${opts[1]} != [123] ]]; do
+                        read -r -p "Enter the desired number of replicas (1,2,3): " opts[1]
+                    done
+                    replicacount=${opts[1]}
+                    ;;
+                2)
+                    # Erasure Coding
+                    optcfg $response
+                    if [[ ${opts[response]} == "Y" ]]; then
+                        testecresponse="Y"
+                    else
+                        testecresponse="N"
+                        # Disable ISA plugin due to EC not being tested
+                        opts[3]=Disabled
+                        isaresponse="N"
+                        ecplugin="jerasure"
+                    fi
+                    ;;
+                3)
+                    # ISA plugin
+                    optcfg $response
+                    if [[ $testecresponse != "Y" ]]; then
+                        echo " *** Erasure coding test must be enabled to use the ISA plugin. ***"
+                        read -s -p "  Press [Enter] to continue... "
+                        opts[response]=Disabled
+                    else
+                        if [[ ${opts[$response]} == "Y" ]]; then
+                            isaresponse="Y"
+                            ecplugin="isa"
+                        else
+                            isaresponse="N"
+                            ecplugin="jerasure"
+                        fi
+                    fi
+                    ;;
+                4)
+                    # RBD
+                    optcfg $response
+                    if [[ ${opts[$response]} == "Y" ]]; then
+                        rbdresponse="Y"
+                    else
+                        rbdresponse="N"
+                    fi
+                    ;;
+                5)
+                    # CephFS
+                    optcfg $response
+                    if [[ ${opts[$response]} == "Y" ]]; then
+                        cephfsresponse="Y"
+                    else
+                        cephfsresponse="N"
+                    fi
+                    ;;
+                6)
+                    # S3
+                    echo " *** S3 testing is currently not available. ***"
+                    read -s -p "  Press [Enter] to continue... "
+                    #optcfg $response
+                    #if [[ ${opts[$response]} == "Y" ]]; then
+                    #    s3response="Y"
+                    #else
+                    #    s3response="N"
+                    #fi
+                    ;;
+                7)
+                    # Select Device Class
+                    choosedevclass $response
+                    ;;
+                8)
+                    # Upload results
+                    optcfg $response
+                    if [[ ${opts[$response]} == "Y" ]]; then
+                        sendresults=1
+                    else
+                        sendresults=0
+                    fi
+                    ;;
+                9)
+                    # Start test
+                    if [[ ${opts[7]} == "" ]]; then
+                        echo " *** You must select a device class before starting test! ***"
+                        read -s -p "  Press [Enter] to continue... "
+                    else
+                        break
+                    fi
+                    ;;
+                A|a)
+                    echo "** Test aborted **"
+                    exit 1
+                    ;;
+                *)
+                    echo "Invalid option!"
+        esac
+    done
+
+    # Configure EC testlist and allocdiv for RBD and CephFS
+    if [[ $rbdresponse = "Y" ]]; then
+        if [[ $testecresponse = "Y" ]]; then
+            testlist="rep-rbd ec-rbd $testlist"
+            allocdiv=$[allocdiv+5]
+        else
+            testlist="rep-rbd $testlist"
+            allocdiv=$[allocdiv+3]
+        fi
+    fi
+    if [[ $cephfsresponse = "Y" ]]; then
+        if [[ $testecresponse = "Y" ]]; then
+            testlist="rep-cephfs ec-cephfs $testlist"
+            allocdiv=$[allocdiv+5]
+        else
+            testlist="rep-cephfs $testlist"
+            allocdiv=$[allocdiv+3]
+        fi
+    fi
+    # If using replicated only, allocdiv should equal replica count
+    #if [[ $testecresponse = "N" ]]; then
+    #    allocdiv=$replicacount
+    #fi
+
+    if [ $debug = 1 ]; then
+        echo
+        echo "Using configuration parameters:"
+        printf "%-15s:   %-8s\n" cdesc $cdesc
+        printf "%-15s:   %-8s\n" sendresults $sendresults
+        printf "%-15s:   %-8s\n" replicacount $replicacount
+        printf "%-15s:   %-8s\n" testecresponse $testecresponse
+        printf "%-15s:   %-8s\n" isaresponse $isaresponse
+        printf "%-15s:   %-8s\n" ecplugin $ecplugin
+        printf "%-15s:   %-8s\n" rbdresponse $rbdresponse
+        printf "%-15s:   %-80s\n" testlist "$testlist"
+        printf "%-15s:   %-8s\n" allocdiv $allocdiv
+        printf "%-15s:   %-8s\n" cephfsresponse $cephfsresponse
+        printf "%-15s:   %-8s\n" s3response $s3response
+        echo
+    fi
+
+    echo " ----  Building Test Parameters  ----"
     #This function prepares the environment
     #Get a list of the monitor hosts IP addresses.  Needed for CephFS mounting
     monlist=`ceph mon dump|grep ^[0-9]|cut -f2 -d" "|cut -f1 -d":"|paste -s -d ','`
