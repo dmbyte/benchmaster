@@ -4,7 +4,7 @@ debug=0
 
 #defaults
 ceph_ver=$(ceph -v | awk '{print $3}'); ceph_ver=${ceph_ver%%.*}
-cdesc=benchmaster_$(date +%Y-%M-%d_%H%M%S)
+cdesc=${HOSTNAME}_$(date +%Y-%M-%d_%H%M%S)
 replicacount=1
 sendresults=N
 testecresponse=N
