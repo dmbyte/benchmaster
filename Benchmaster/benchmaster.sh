@@ -265,6 +265,11 @@ infogather() {
     secretkey="${secretkey%%*( )}"
     shopt -u extglob
 
+    # NOTE: classnodecount is currently not used. Adding just to mainain parity with ses6 branch
+    #get count of OSD nodes and ask user for M & K settings 
+    #make sure M & K are recorded in the cephinfo.txt file  
+    classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
+
     #Get ceph free space and calculate base allocation unit size (alloc_size)
     # given pools for the tests selected.  RBD & CephFS have both EC & Replicated,
     # RGW has one EC
