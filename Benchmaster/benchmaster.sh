@@ -337,15 +337,19 @@ prepare() {
         fi
     done
 
-    echo "** Ensuring ceph-common and fio are installed on all nodes, and copying /etc/ceph to test nodes"
-    #Ensure fio is installed on admin node
+    echo "** Ensuring ceph-common, fio and screen are installed on all nodes, and copying /etc/ceph to test nodes"
+    #Ensure bc and fio are installed on admin node
+    if [ !`command -v bc` ]; then
+        echo "** Installing bc on $HOSTNAME"; zypper -q in -y bc &>/dev/null
+    fi
     if [ ! `command -v fio` ]; then
-        echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null
+        echo "** Installing fio on $HOSTNAME"; zypper -q in -y fio &>/dev/null
     fi
     #Perform work on all test nodes
     for m in `cat loadgens.lst`; do
         ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
         ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
+        ssh root@$m 'if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi'
         ssh root@$m 'mkdir -p /etc/ceph'
         scp -qr /etc/ceph/* root@$m:/etc/ceph/
     done
