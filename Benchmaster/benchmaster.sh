@@ -579,10 +579,12 @@ runjobs() {
             echo "Letting system settle for 30s"
             sleep 30s
             fi
+        #read -r -p "press enter to proceed to next job" garbage
         done
     done
 
-    if [ "$sendresult" == 1 ]; then
+
+    if [ "$sendresults" == 1 ]; then
         shopt -s extglob
         id=`ceph status|grep id|cut -f2 -d":"`
         id="${id##*( )}"
