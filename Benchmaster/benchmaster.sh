@@ -3,6 +3,7 @@ debug=0
 #debug doesn't collect system info.
 
 #defaults
+ceph_ver=$(ceph -v | awk '{print $3}'); ceph_ver=${ceph_ver%%.*}
 cdesc=benchmaster_$(date +%Y-%M-%d_%H%M%S)
 replicacount=1
 sendresults=N
@@ -378,6 +379,8 @@ prepare() {
     # These are needed whether EC/or otherwise
     ceph osd crush rule create-replicated $mydclass default host $mydclass
     ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+    # SES6 specific code?
+    [[ "ceph_ver" -ge "14" ]] && ceph osd pool set 3rep-bench size $replicacount 
     ceph osd pool application enable 3rep-bench rbd
     ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
 
@@ -490,7 +493,9 @@ prepare() {
         #mount cephfs on each node
         echo "Mounting cephfs and creating a directory for each loadgen node"
         for k in `cat loadgens.lst`; do
-            ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
+            # SES6 specific code?
+            [[ "ceph_ver" -ge "14" ]] && mnt_opts=',nocrc,readdir_max_bytes=4104304,readdir_max_entries=8192' || mnt_opts=""
+            ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=${secretkey}${mnt_opts};sleep 1s;mkdir -p /mnt/cephfs/$k"
             echo Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
             if [[ $testecresponse =~ [yY] ]]; then
@@ -602,7 +607,13 @@ cleanup() {
         ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster'
     done
     # Stop MDS targets
-    salt '*' cmd.run 'systemctl stop ceph-mds.target'
+ 
+    # SES6 specific code?
+    if [[ "ceph_ver" -ge "14" ]]; then
+        salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
+    else
+        salt '*' cmd.run 'systemctl stop ceph-mds.target'
+    fi
     for i in `seq 0 20`; do
         ceph mds fail $i
     done
@@ -614,7 +625,12 @@ cleanup() {
     ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
     ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
     # Restart MDS targets
-    salt '*' cmd.run 'systemctl start ceph-mds.target'
+    # SES6 specific code?
+    if [[ "ceph_ver" -ge "14" ]]; then
+        salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
+    else
+        salt '*' cmd.run 'systemctl start ceph-mds.target'
+    fi
     # Delete other test pools
     ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
     ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
