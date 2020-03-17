@@ -445,8 +445,8 @@ prepare() {
         ceph fs new cephfs cephfs_metadata cephfs_data
     ### ADDED for replica testing
         sleep 30s
-        ceph osd pool set cephfs_data size 3
-        ceph osd pool set cephfs_metadata size 3
+        ceph osd pool set cephfs_data size $replicacount
+        ceph osd pool set cephfs_metadata size $replicacount
         sleep 60s
     ####
         sleep 1s
