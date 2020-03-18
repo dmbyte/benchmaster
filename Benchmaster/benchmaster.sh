@@ -3,7 +3,8 @@ debug=0
 #debug doesn't collect system info.
 
 #defaults
-cdesc=benchmaster_$(date +%Y-%M-%d_%H%M%S)
+ceph_ver=$(ceph -v | awk '{print $3}'); ceph_ver=${ceph_ver%%.*}
+cdesc=${HOSTNAME}_$(date +%Y-%M-%d_%H%M%S)
 replicacount=1
 sendresults=N
 testecresponse=N
@@ -52,7 +53,7 @@ infogather() {
     #Validate environment and general details
     #check if loadgens.lst and osdnodes.lst files are present
     for file in loadgens.lst osdnodes.lst; do
-        if [ ! -f $file ];then
+        if [ ! -f $file ]; then
             echo "!! You must create the $file file for this to work."
             echo "   The file should contain a list of all the ${file%%s.osd} nodes"
             echo "   with one per line."
@@ -60,7 +61,7 @@ infogather() {
         fi
     done
     #make the results directory
-    if [ ! -d results ];then
+    if [ ! -d results ]; then
         mkdir -p results
     fi
 
@@ -265,6 +266,11 @@ infogather() {
     secretkey="${secretkey%%*( )}"
     shopt -u extglob
 
+    # NOTE: classnodecount is currently not used. Adding just to mainain parity with ses6 branch
+    #get count of OSD nodes and ask user for M & K settings 
+    #make sure M & K are recorded in the cephinfo.txt file  
+    classnodecount=`ceph osd tree --format=json | jq '[(.nodes[] | select(.type == "osd") | select(.device_class == "ssd") | .id) as $id | .nodes[] | select(.type == "host") | select(.children | contains([$id]))] | unique_by(.name)|.[].name'|wc -l`
+
     #Get ceph free space and calculate base allocation unit size (alloc_size)
     # given pools for the tests selected.  RBD & CephFS have both EC & Replicated,
     # RGW has one EC
@@ -289,7 +295,7 @@ infogather() {
     loadgencnt=`cat loadgens.lst|xargs|awk -F" " '{print NF}'`
     allocunit=$((rawspace / 1024 / 1024 / loadgencnt ))
     echo firstallocunit=$allocunit
-    if [ $allocunit -gt $[1500 * $allocdiv] ];then
+    if [ $allocunit -gt $[1500 * $allocdiv] ]; then
         allocunit=$[1500 * $allocdiv]
     fi
     echo allocunit=$allocunit GB
@@ -307,7 +313,7 @@ infogather() {
 prepare() {
     #check name resolution for loadgens
     for m in `cat loadgens.lst`; do
-        if ! host $m &>/dev/null;then
+        if ! host $m &>/dev/null; then
             echo "!! Host $m does not resolve to an IP.  Please fix and re-run"
             exit
         fi
@@ -315,7 +321,7 @@ prepare() {
 
     echo "** First we'll ensure that we have uninhibited access"
     #Check if public key is present
-    if [ ! -f ~/.ssh/id_rsa.pub ];then
+    if [ ! -f ~/.ssh/id_rsa.pub ]; then
             echo "** Need to generate rsa keypair for this host"
             ssh-keygen -N "" -f ~/.ssh/id_rsa
     fi
@@ -337,15 +343,19 @@ prepare() {
         fi
     done
 
-    echo "** Ensuring ceph-common and fio are installed on all nodes, and copying /etc/ceph to test nodes"
-    #Ensure fio is installed on admin node
-    if [ ! `command -v fio` ];then
-        echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null
+    echo "** Ensuring ceph-common, fio and screen are installed on all nodes, and copying /etc/ceph to test nodes"
+    #Ensure bc and fio are installed on admin node
+    if [ !`command -v bc` ]; then
+        echo "** Installing bc on $HOSTNAME"; zypper -q in -y bc &>/dev/null
+    fi
+    if [ ! `command -v fio` ]; then
+        echo "** Installing fio on $HOSTNAME"; zypper -q in -y fio &>/dev/null
     fi
     #Perform work on all test nodes
     for m in `cat loadgens.lst`; do
         ssh root@$m 'if [ ! `command -v rbd` ];then echo "** Installing ceph-common on $HOSTNAME";zypper -q in -y ceph-common &>/dev/null;fi'
         ssh root@$m 'if [ ! `command -v fio` ];then echo "** Installing fio on $HOSTNAME";zypper -q in -y fio &>/dev/null;fi'
+        ssh root@$m 'if [ ! `command -v screen` ];then echo "** Installing screen on $HOSTNAME";zypper -q in -y screen &>/dev/null;fi'
         ssh root@$m 'mkdir -p /etc/ceph'
         scp -qr /etc/ceph/* root@$m:/etc/ceph/
     done
@@ -369,11 +379,12 @@ prepare() {
     # These are needed whether EC/or otherwise
     ceph osd crush rule create-replicated $mydclass default host $mydclass
     ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+    # SES6 specific code?
+    [[ "ceph_ver" -ge "14" ]] && ceph osd pool set 3rep-bench size $replicacount 
     ceph osd pool application enable 3rep-bench rbd
     ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
 
-    if [[ $rbdresponse =~ [yY] ]]
-    then
+    if [[ $rbdresponse =~ [yY] ]]; then
         #create a pool of size 3 for initial benchmarks
         ceph osd crush rule create-replicated $mydclass default host $mydclass
         ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
@@ -395,8 +406,7 @@ prepare() {
             ssh root@$k "for l in {0..9};do rbd map 3rep-bench/$k-\$l;done"
         done
 
-        if [[ $testecresponse =~ [yY] ]]
-        then
+        if [[ $testecresponse =~ [yY] ]]; then
             #make EC RBD pool and mount it
             ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
             ceph osd pool create ecrbdbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
@@ -420,8 +430,7 @@ prepare() {
         fi
     fi
 
-    if [[ $cephfsresponse =~ [yY] ]]
-    then
+    if [[ $cephfsresponse =~ [yY] ]]; then
         #delete the existing CephFS
         salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
         for i in `seq 0 20`; do
@@ -439,8 +448,8 @@ prepare() {
         ceph fs new cephfs cephfs_metadata cephfs_data
     ### ADDED for replica testing
         sleep 30s
-        ceph osd pool set cephfs_data size 3
-        ceph osd pool set cephfs_metadata size 3
+        ceph osd pool set cephfs_data size $replicacount
+        ceph osd pool set cephfs_metadata size $replicacount
         sleep 60s
     ####
         sleep 1s
@@ -456,8 +465,7 @@ prepare() {
         done
         echo
             echo "Making Sure MDS are started"
-        while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ];
-        do
+        while [ `ceph mds stat|grep "cephfs-0"|wc -l` -gt 0 ]; do
         echo -n '.'
             salt -I roles:mds cmd.run 'systemctl reset-failed ceph-mds@`hostname`'
             sleep 3s
@@ -467,8 +475,7 @@ prepare() {
         echo "settling for 15s"
         sleep 15s
         echo
-        if [[ $testecresponse =~ [yY] ]]
-        then
+        if [[ $testecresponse =~ [yY] ]]; then
             #create EC CephFS pool and mount it
             ceph osd pool create eccephfsbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
             ceph osd pool set eccephfsbench allow_ec_overwrites true
@@ -486,11 +493,12 @@ prepare() {
         #mount cephfs on each node
         echo "Mounting cephfs and creating a directory for each loadgen node"
         for k in `cat loadgens.lst`; do
-            ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=$secretkey;sleep 1s;mkdir -p /mnt/cephfs/$k"
+            # SES6 specific code?
+            [[ "ceph_ver" -ge "14" ]] && mnt_opts=',nocrc,readdir_max_bytes=4104304,readdir_max_entries=8192' || mnt_opts=""
+            ssh root@$k "mkdir -p /mnt/cephfs;sleep 1s;mount -t ceph $monlist:/ /mnt/cephfs -o name=admin,secret=${secretkey}${mnt_opts};sleep 1s;mkdir -p /mnt/cephfs/$k"
             echo Bind mount the per loadgen cephfs path to a universal path
             ssh root@$k "mkdir -p /mnt/benchmaster; sleep 1s;mount --bind /mnt/cephfs/$k /mnt/benchmaster"
-            if [[ $testecresponse =~ [yY] ]]
-            then
+            if [[ $testecresponse =~ [yY] ]]; then
                 ssh root@$k "mkdir -p /mnt/cephfs/ec;setfattr -n ceph.dir.layout.pool -v eccephfsbench /mnt/cephfs/ec;mkdir -p /mnt/cephfs/ec/$k"
                 # Bind mount the per loadgen cephfs path to a universal path
                 ssh root@$k "mkdir -p /mnt/benchmaster/ec; mount --bind /mnt/cephfs/ec/$k /mnt/benchmaster/ec"
@@ -504,32 +512,31 @@ runjobs() {
     jobfiles="jobfiles/prepit.prep "`ls jobfiles/*.fio`
     loadgens=`cat loadgens.lst`
 
-    if [ $debug != 1 ]
-    then
-    echo "**** Cluster Description ****">results/cephinfo.txt
-    echo "clusterdescription:"$cdesc >>results/cephinfo.txt
-    echo " ">>results/cephinfo.txt
+    if [ $debug != 1 ]; then
+        echo "**** Cluster Description ****">results/cephinfo.txt
+        echo "clusterdescription:"$cdesc >>results/cephinfo.txt
+        echo " ">>results/cephinfo.txt
 
-    echo "**** Ceph Status ****">>results/cephinfo.txt
-    ceph status >>results/cephinfo.txt
+        echo "**** Ceph Status ****">>results/cephinfo.txt
+        ceph status >>results/cephinfo.txt
 
-    echo " ">>results/cephinfo.txt
-    echo "**** OSD Tree ****" >>results/cephinfo.txt
-    ceph osd tree >>results/cephinfo.txt
+        echo " ">>results/cephinfo.txt
+        echo "**** OSD Tree ****" >>results/cephinfo.txt
+        ceph osd tree >>results/cephinfo.txt
 
-    echo " ">>results/cephinfo.txt
-    echo "**** pools ****" >>results/cephinfo.txt
-    ceph osd lspools >>results/cephinfo.txt
+        echo " ">>results/cephinfo.txt
+        echo "**** pools ****" >>results/cephinfo.txt
+        ceph osd lspools >>results/cephinfo.txt
 
-    echo " ">>results/cephinfo.txt
-    echo "**** policy.cfg ****" >>results/cephinfo.txt
-    cat /srv/pillar/ceph/proposals/policy.cfg >>results/cephinfo.txt
+        echo " ">>results/cephinfo.txt
+        echo "**** policy.cfg ****" >>results/cephinfo.txt
+        cat /srv/pillar/ceph/proposals/policy.cfg >>results/cephinfo.txt
 
-    echo " ">>results/cephinfo.txt
-    echo "**** OSD Info ****" >>results/cephinfo.txt
-    for j in `cat osdnodes.lst`; do
-        ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt
-    done
+        echo " ">>results/cephinfo.txt
+        echo "**** OSD Info ****" >>results/cephinfo.txt
+        for j in `cat osdnodes.lst`; do
+            ssh root@$j 'echo "******** HOSTNAME ******";hostname;echo "**********************";echo "******** hwinfo ******";hwinfo --short;echo "******** lsblk ******";lsblk -o name,partlabel,fstype,mountpoint,size,vendor,model,tran,rota' >>results/cephinfo.txt
+        done
     fi
     for  test in $testlist; do
         case $test in
@@ -552,35 +559,37 @@ runjobs() {
         esac
 
         for i in $jobfiles; do
-                skiplist=`head -1 $i|grep skip`
-                if ! [[ " $skiplist " =~ " $test " ]];then
+            skiplist=`head -1 $i|grep skip`
+            if ! [[ " $skiplist " =~ " $test " ]]; then
                 i=${i##*/}
-            jobname=${i%.*}
-            export curjob=$test-$jobname
-            echo "*** Running job: $curjob ***"
-            mkdir -p results/$curjob
+                jobname=${i%.*}
+                export curjob=$test-$jobname
+                echo "*** Running job: $curjob ***"
+                mkdir -p results/$curjob
                 sleep 1s
-            commandset=""
-            command=""
-            for l in $loadgens; do
-                #start fio server on each loadgen
-                #echo "Killing any running fio on $l and starting fio servers in screen session"
+                commandset=""
+                command=""
+                for l in $loadgens; do
+                    #start fio server on each loadgen
+                    #echo "Killing any running fio on $l and starting fio servers in screen session"
                     ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
-                ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
-                ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
-                sleep 1s
-                commandset=("--client=$l" )
-                command+="$commandset jobfiles/$i "
-            done
+                    ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
+                    ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
+                    sleep 1s
+                    commandset=("--client=$l" )
+                    command+="$commandset jobfiles/$i "
+                done
             curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
-                fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
-                echo "Letting system settle for 30s"
-                sleep 30s
-                fi
+            fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
+            echo "Letting system settle for 30s"
+            sleep 30s
+            fi
+        #read -r -p "press enter to proceed to next job" garbage
         done
     done
 
-    if [ "$sendresult" == 1 ];then
+
+    if [ "$sendresults" == 1 ]; then
         shopt -s extglob
         id=`ceph status|grep id|cut -f2 -d":"`
         id="${id##*( )}"
@@ -598,7 +607,13 @@ cleanup() {
         ssh root@$i 'for j in `ls /dev/rbd*`;do rbd unmap $j;done;umount -R /mnt/benchmaster;rm -rf /mnt/cephfs/ec/*;rm -rf /mnt/cephfs/$i;umount /mnt/cephfs;rm -rf /mnt/cephfs /mnt/benchmaster'
     done
     # Stop MDS targets
-    salt '*' cmd.run 'systemctl stop ceph-mds.target'
+ 
+    # SES6 specific code?
+    if [[ "ceph_ver" -ge "14" ]]; then
+        salt -I roles:mds cmd.run 'systemctl stop ceph-mds.target'
+    else
+        salt '*' cmd.run 'systemctl stop ceph-mds.target'
+    fi
     for i in `seq 0 20`; do
         ceph mds fail $i
     done
@@ -610,7 +625,12 @@ cleanup() {
     ceph osd pool rm cephfs_data cephfs_data --yes-i-really-really-mean-it
     ceph osd pool rm cephfs_metadata cephfs_metadata --yes-i-really-really-mean-it
     # Restart MDS targets
-    salt '*' cmd.run 'systemctl start ceph-mds.target'
+    # SES6 specific code?
+    if [[ "ceph_ver" -ge "14" ]]; then
+        salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
+    else
+        salt '*' cmd.run 'systemctl start ceph-mds.target'
+    fi
     # Delete other test pools
     ceph tell mon.* injectargs --mon-allow-pool-delete=true  &>/dev/null
     ceph osd pool delete 3rep-bench 3rep-bench --yes-i-really-really-mean-it  &>/dev/null
