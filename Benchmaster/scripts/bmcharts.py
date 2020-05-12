@@ -15,7 +15,8 @@ if len(sys.argv) != 2:
 
 
 protocols = ['rbd', 'cephfs']
-iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread','mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
+iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread',
+             'mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
 clivar1 = sys.argv[1]
 
 
@@ -35,7 +36,7 @@ for thisproto in protocols:
     for iopat in iopattern:
         # print "Proto = %s     IOPAT= %s" %(thisproto, iopat)
         for thisfile in filelist:
-            thisresult = []
+	    thisresult = []
             myjson = ''
             xlabels = ''
             yvalues = ''
@@ -75,7 +76,7 @@ for thisproto in protocols:
                     bso = 0
 
                 if testname[0:2] == 'ec':
-                    protection = 'EC 3+1'
+                    protection = 'EC 6+3'
                 elif testname[0:3] == 'rep':
                     protection = "3x Rep"
 
@@ -88,7 +89,7 @@ for thisproto in protocols:
                     latwindow = 0
                     latpercentage = 0
                 for x in range(0, len(fiodata['client_stats'])):
-                    # Since fio v2.99 time resolution changed to nanosecond, json output key name changed from 'lat' to 'lat_ns' accordingly
+                    # Since fio v2.99 time resolution changed to nanosecond, json output key name changed from 'lat' 
                     lat_key = 'lat_ns' if 'lat_ns' in fiodata['client_stats'][x]['write'] else 'lat'
                     if lat_key == 'lat_ns':
                         latdiv = 1000000
@@ -103,19 +104,20 @@ for thisproto in protocols:
                         readiops = fiodata['client_stats'][x]['read']['iops']
                         readavglat = fiodata['client_stats'][x]['read'][lat_key]['mean']/latdiv
                         readmaxlat = fiodata['client_stats'][x]['read'][lat_key]['max']/latdiv
-                        # print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' % (protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat)
-                        thisresult = [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobspernode, lattarget, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, readavglat, readmaxlat]
-                        results.append(thisresult)
+                        # print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"
+                        thisresult = [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobsp
+                            latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops,
+			results.append(thisresult)
 # print 'total results: %s' %(len(results))
 # from sets import Set
 myset = set()
 for x in results:
-    myset.add(x[1]+x[3])
+        myset.add(x[1]+x[3])
 print 'myset: %s' %(myset)
 
 
 # time to make some graphs
-# need to cycle through the myset list and pull out all metrics from results that meet the protocol and pattern, sort it by io size and then graph it
+# need to cycle through the myset list and pull out all metrics from results that meet the protocol and pattern, sort
 matplotlib.use('Agg')
 for filter in myset:
     import matplotlib.pyplot as plt
@@ -132,56 +134,56 @@ for filter in myset:
     trows = []
     for rline in results:
         if filter == rline[1]+rline[3]:
-            graphlist.append(rline)
+	        graphlist.append(rline)
     sortgraph = graphlist.sort(key=itemgetter(2))
     for sline in graphlist:
         print sline
         myrow = []
         colors = []
-        # print 'barheight: %s' %(int(sline[15]))
-        if sline[5] != "100":
-            barheight.append(int(sline[11]))
-            graphlines.append(gc)
-            tick_label.append(str(sline[2]) + 'KiB\n' + 'Write\n'+sline[0])
-            latpoints.append(int(sline[13]))
-            gc = gc+1
-            colors.append(readbar)
-        if sline[5] != "0":
-            barheight.append(int(sline[15]))
-            graphlines.append(gc)
-            tick_label.append(str(sline[2]) + 'KiB\n' + 'Read\n'+sline[0])
-            latpoints.append(int(sline[17]))
-            gc = gc+1
-            colors.append(writebar)
+	# print 'barheight: %s' %(int(sline[15]))
+	if sline[5] != "100":
+    		barheight.append(int(sline[11]))
+		graphlines.append(gc)
+	        tick_label.append(str(sline[2]) + 'KiB\n' + 'Write\n'+sline[0])
+        	latpoints.append(int(sline[13]))
+	        gc = gc+1
+	        colors.append(readbar)
+    	if sline[5] != "0":
+	  	barheight.append(int(sline[15]))
+	        graphlines.append(gc)
+		tick_label.append(str(sline[2]) +'KiB\n'+ 'Read\n'+sline[0])        
+            	latpoints.append(int(sline[17]))
+	        gc=gc+1
+        	colors.append(writebar)
         if sline[5] == "100":
-            columnheaders=['Protection','Read BW (MiB/s)','Read IOPS', 'Read Average Latency (ms)']
-            myrow=[sline[0],int(sline[15]),int(sline[16]),int(sline[17]*10)/10]
+            	columnheaders=['I/O Size','Protection','Read BW (MiB/s)','Read IOPS', 'Read Average Latency (ms)']
+            	myrow=[str(sline[2]) + 'KiB',sline[0],int(sline[15]),int(sline[16]),int(sline[17]*10)/10]
         elif sline[5] == "0":
-            columnheaders=['Protection','Write BW (MiB/s)','Write IOPS', 'Write Average Latency (ms)']
-            myrow=[sline[0],int(sline[11]),int(sline[12]),int(sline[13]*10)/10]
+            	columnheaders=['I/O Size','Protection','Write BW (MiB/s)','Write IOPS', 'Write Average Latency (ms)']
+            	myrow=[str(sline[2]) + 'KiB',sline[0],int(sline[11]),int(sline[12]),int(sline[13]*10)/10]
         else:
-            columnheaders=['Write BW (MiB/s)','Write IOPS','Write Average\nLatency (ms)','Protection','Read Average\nLatency (ms)', 'Read IOPS', 'Read BW (MiB/s)']
-            myrow=[int(sline[11]),int(sline[12]),int(sline[13]*10)/10,sline[0],int(sline[17]*10)/10,int(sline[16]),int(sline[15])]
-        trows.append(myrow)
+            	columnheaders=['Write BW (MiB/s)','Write IOPS','Write Average\nLatency (ms)','Protection','Read Avera
+            	myrow=[int(sline[11]),int(sline[12]),int(sline[13]*10)/10,sline[0],int(sline[17]*10)/10,int(sline[16]
+    	trows.append(myrow)
     ax1.bar(graphlines, barheight, width=0.8,tick_label=tick_label, color=colors)
-    rawtitle = str(sline[1]+' '+sline[3])
-    mytitle = rawtitle.upper()
+    rawtitle=str(sline[1]+' '+sline[3])
+    mytitle=rawtitle.upper()
     plt.title(mytitle)
     plt.rcParams['xtick.labelsize']=8
     ax1.set_ylabel('Throughput (MiB/s)')
-    ax2 = ax1.twinx()
-    ax2.plot(graphlines, latpoints, color=hline, marker='_', linestyle='', markersize=340/len(graphlines))
-    ax2.set_ylabel('Average Latency (ms)', color=hline)
+    ax2=ax1.twinx()
+    ax2.plot(graphlines,latpoints,color=hline,marker='_',linestyle='',markersize=340/len(graphlines))
+    ax2.set_ylabel('Average Latency (ms)',color=hline)
     ax2.tick_params(colors=hline)
     fig.tight_layout()
-    the_table = plt.table(cellLoc='center',cellText=trows, colLabels=columnheaders, loc='bottom', bbox=[0.0, -(.25+len(trows)*.15), 1, len(trows)*.15])
+    the_table=plt.table(cellLoc='center',cellText=trows,colLabels=columnheaders,loc='bottom',bbox=[0.0,-(.25+len(trow
     for (row, col), cell in the_table.get_celld().items():
-        if (row == 0) or (col == -1):
-    	    cell.set_text_props(fontproperties=FontProperties(weight='bold'))
+    	if (row == 0) or (col == -1):
+    		cell.set_text_props(fontproperties=FontProperties(weight='bold'))
     the_table.auto_set_font_size(False)
     the_table.set_fontsize(6)
     plt.subplots_adjust(bottom=.5)
-    plt.savefig("/root/"+filter+".png")
+    plt.savefig("/root/"+filter+".png")	
     plt.cla()
     plt.clf()
     plt.close('all')
