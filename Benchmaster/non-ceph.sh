@@ -30,7 +30,7 @@ optcfg () {
 infogather() {
     #Validate environment and general details
     #check if loadgens.lst and osdnodes.lst files are present
-    for file in loadgens.lst osdnodes.lst; do
+    for file in loadgens.lst ; do
         if [ ! -f $file ]; then
             echo "!! You must create the $file file for this to work."
             echo "   The file should contain a list of all the ${file%%s.osd} nodes"
@@ -87,7 +87,7 @@ infogather() {
                     read -r -p "Describe the cluster/test: " opts[0]
                     cdesc=opts[0]
                     ;;
-                2)
+                1)
                     # NFS
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
@@ -96,7 +96,7 @@ infogather() {
                         nfsresponse="N"
                     fi
                     ;;
-                3)
+                2)
                     # S3
                     echo " *** S3 testing is currently not available. ***"
                     read -s -p "  Press [Enter] to continue... "
@@ -107,7 +107,7 @@ infogather() {
                         s3response="N"
                     fi
                     ;;
-                4)
+                3)
                     # Upload results
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
@@ -116,7 +116,7 @@ infogather() {
                         sendresults=0
                     fi
                     ;;
-                9)
+                4)
                     # Start test
                     if [[ ${opts[7]} == "" ]]; then
                         echo " *** You must select a device class before starting test! ***"
