@@ -118,12 +118,7 @@ infogather() {
                     ;;
                 4)
                     # Start test
-                    if [[ ${opts[7]} == "" ]]; then
-                        echo " *** You must select a device class before starting test! ***"
-                        read -s -p "  Press [Enter] to continue... "
-                    else
-                        break
-                    fi
+                    break
                     ;;
                 A|a)
                     echo "** Test aborted **"
