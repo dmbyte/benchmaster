@@ -13,6 +13,7 @@ testlist=""
 allocdiv=0
 ramptime=600
 runtime=1800
+filesize=1
 
 
 ###### NEED to get NFS and/or S3 IP addresses and bucket name
@@ -87,7 +88,12 @@ infogather() {
                     read -r -p "Describe the cluster/test: " opts[0]
                     cdesc=opts[0]
                     ;;
-                1)
+                1)  
+                    # Target bucket
+                    read -r -p "Enter the target directory portion of the mountpoint or bucket name to copy data to: " opts[1]
+                    bucketname=opts[1]
+                    ;;
+                2)
                     # NFS
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
@@ -96,10 +102,14 @@ infogather() {
                         nfsresponse="N"
                     fi
                     ;;
-                2)
+                3)
+                    # NFS mount IP
+                    read -r -p "Enter the NFS IP to mount: " opts[3]
+                    nfsip=opts[3]
+                    ;;
+                4)
                     # S3
-                    echo " *** S3 testing is currently not available. ***"
-                    read -s -p "  Press [Enter] to continue... "
+                    read -s -p "  Test S3? "
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
                         s3response="Y"
@@ -107,7 +117,12 @@ infogather() {
                         s3response="N"
                     fi
                     ;;
-                3)
+                5)
+                    #S3 IP
+                    read -r -p "Enter the S3 target IP: " opts[5]    
+                    s3ip=opts[5]
+                    ;;
+                6)
                     # Upload results
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
@@ -116,7 +131,7 @@ infogather() {
                         sendresults=0
                     fi
                     ;;
-                4)
+                7)
                     # Start test
                     break
                     ;;
