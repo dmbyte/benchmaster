@@ -290,14 +290,7 @@ cleanup() {
     # Remove RBD and CephFS devices
     for i in `cat loadgens.lst`; do
         ssh root@$i 'umount -R /mnt/benchmaster;rm -rf /mnt/nfs/ec/*;rm -rf /mnt/nfs/$i;umount /mnt/nfs;rm -rf /mnt/nfs /mnt/benchmaster'
-    done
-    lse
-        salt '*' cmd.run 'systemctl stop ceph-mds.target'
-    fi
-    for i in `seq 0 20`; do
-        ceph mds fail $i
-    done
- 
+    done 
     # Kill all fio and screen processes
     for k in `cat loadgens.lst`; do
             ssh root@$k 'killall fio &>/dev/null;killall screen &>/dev/null'
