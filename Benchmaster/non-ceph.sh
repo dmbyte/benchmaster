@@ -110,7 +110,6 @@ infogather() {
             ;;
         4)
             # S3
-            read -s -p "  Test S3? "
             optcfg $response
             if [[ ${opts[$response]} == "Y" ]]; then
                 s3response="Y"
