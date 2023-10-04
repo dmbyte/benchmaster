@@ -322,13 +322,12 @@ runjobs() {
                         #echo "Killing any running fio on $l and starting fio servers in screen session"
                         ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
                         ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
-                        ssh root@$l "screen -r \"fioserver\" -X stuff $\"export S3_IP=$s3ip;export S3_KEY=$s3secretaccesskey;export S3_ID=$s3accesskeyID;export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
+                        ssh root@$l "screen -r \"fioserver\" -X stuff $\"S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --server\n\""
                         sleep 1s
                         commandset=("--client=$l")
                         command+="$commandset jobfiles/s3/$i "
                     done
-                    curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
-                        fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
+                    curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
                     echo "Letting system settle for 30s"
                     sleep 30s
                 fi
