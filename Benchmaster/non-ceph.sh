@@ -16,7 +16,7 @@ runtime=1800
 filesize=1
 
 
-###### NEED to get NFS and/or S3 IP addresses and bucket name
+
 optcfg () {
     local option=$1
     if [[ ${opts[option]} == Y ]]
@@ -52,7 +52,9 @@ infogather() {
                  "NFS IP to mount, ${opts[3]:-$nfsip}" \
                  "Test S3,${opts[4]:-$s3response}" \
                  "IP of S3 endpoint,${opts[5]:-$s3ip}" \
-                 "Upload Results?,${opts[6]:-$sendresults}" \
+                 "S3 Access Key ID,${opts[6]:-$s3accesskeyID}" \
+                 "S3 Secret Access Key,${opts[7]:-$s3secretaccesskey}" \
+                 "Upload Results?,${opts[8]:-$sendresults}" \
                  "Start Test")
         clear
         echo "Benchmaster:"
@@ -94,7 +96,7 @@ infogather() {
                 1)  
                     # Target bucket
                     read -r -p "Enter the target directory portion of the mountpoint or bucket name to copy data to: " opts[1]
-                    bucketname=${opts[1]}
+                    bucketname=${opts[$response]}
                     ;;
                 2)
                     # NFS
@@ -126,6 +128,17 @@ infogather() {
                     s3ip=${opts[5]}
                     ;;
                 6)
+                    #S3 Access Key ID
+                    read -r -p "Enter the S3 Access Key ID: " opts[6]
+                    s3accesskeyID=opts[6]
+                    ;;
+                7)
+                    #S3 Secret Access Key
+                    read -r -p "Enter the S3 Secret Access Key: " opts[7]
+                    s3secretaccesskey=opts[6]
+
+                    ;;
+                8)
                     # Upload results
                     optcfg $response
                     if [[ ${opts[$response]} == "Y" ]]; then
@@ -134,7 +147,7 @@ infogather() {
                         sendresults=0
                     fi
                     ;;
-                7)
+                9)
                     # Start test
                     break
                     ;;
