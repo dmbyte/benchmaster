@@ -13,7 +13,7 @@ testlist=""
 allocdiv=0
 ramptime=600
 runtime=1800
-filesize=1
+filesize=10
 
 optcfg() {
     local option=$1
@@ -267,13 +267,13 @@ runjobs() {
             export size=$(($filesize * 10))G
             ;;
         s3)
-            export fiotarget='/'$bucketname'/benchmaster/0.fil:/'$bucketname'/benchmaster/1.fil:/'$bucketname'/benchmaster/2.fil:/'$bucketname'/benchmaster/3.fil:/'$bucketname'/benchmaster/4.fil:/'$bucketname'/benchmaster/5.fil:/'$bucketname'/benchmaster/6.fil:/'$bucketname'/benchmaster/7.fil:/'$bucketname'/benchmaster/8.fil:/mnt/benchmaster/9.fil'
+            export fiotarget='/'$bucketname'/benchmaster/0.fil:/'$bucketname'/benchmaster/1.fil:/'$bucketname'/benchmaster/2.fil:/'$bucketname'/benchmaster/3.fil:/'$bucketname'/benchmaster/4.fil:/'$bucketname'/benchmaster/5.fil:/'$bucketname'/benchmaster/6.fil:/'$bucketname'/benchmaster/7.fil:/'$bucketname'/benchmaster/8.fil:/mnt/'$bucketname'/benchmaster/9.fil:/mnt/'$bucketname'/benchmaster/10.fil:/mnt/'$bucketname'/benchmaster/11.fil:/mnt/'$bucketname'/benchmaster/12.fil:/mnt/'$bucketname'/benchmaster/13.fil:/mnt/'$bucketname'/benchmaster/14.fil:/mnt/'$bucketname'/benchmaster/15.fil:/mnt/'$bucketname'/benchmaster/16.fil'
             export size=$(($filesize * 10))G
 
             ;;
 
         esac
-        if $test != "s3"; then
+        if ! [[ " $test " == " s3 " ]]; then
             echo *******NOT S3****************
             jobfiles="jobfiles/file/prepit.prep "$(ls jobfiles/file/*.fio)
             for i in $jobfiles; do

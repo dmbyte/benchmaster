@@ -23,7 +23,7 @@ http_s3_region=none
 [1M-seqwrite]
 rw=rw
 rwmixread=0
-bs=1M
+bs=512M
 iodepth=32
 filesize=${filesize}
 numjobs=16
