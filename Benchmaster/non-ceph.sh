@@ -91,7 +91,7 @@ infogather() {
                 0)
                     # Test description
                     read -r -p "Describe the cluster/test: " opts[0]
-                    cdesc=${opts[0]}
+                    cdesc=${opts[$response]}
                     ;;
                 1)  
                     # Target bucket
@@ -110,7 +110,7 @@ infogather() {
                 3)
                     # NFS mount IP
                     read -r -p "Enter the NFS IP to mount: " opts[3]
-                    nfsip=${opts[3]}
+                    nfsip=${opts[$response]}
                     ;;
                 4)
                     # S3
@@ -125,17 +125,17 @@ infogather() {
                 5)
                     #S3 IP
                     read -r -p "Enter the S3 target IP: " opts[5]    
-                    s3ip=${opts[5]}
+                    s3ip=${opts[$response]}
                     ;;
                 6)
                     #S3 Access Key ID
                     read -r -p "Enter the S3 Access Key ID: " opts[6]
-                    s3accesskeyID=opts[6]
+                    s3accesskeyID=${opts[$response]}
                     ;;
                 7)
                     #S3 Secret Access Key
                     read -r -p "Enter the S3 Secret Access Key: " opts[7]
-                    s3secretaccesskey=opts[6]
+                    s3secretaccesskey=${opts[$response]}
 
                     ;;
                 8)
