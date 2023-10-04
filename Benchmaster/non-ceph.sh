@@ -47,9 +47,12 @@ infogather() {
     #gather test parameters
     while true; do
         options=("Description,${opts[0]:-$cdesc}" \
-                 "Test NFS,${opts[5]:-$nfsresponse}" \
-                 "Test S3,${opts[6]:-$s3response}" \
-                 "Upload Results?,${opts[8]:-$sendresults}" \
+                 "Bucket Name/NFS mountpoint,${opts[1]:-$bucketname}"\
+                 "Test NFS,${opts[2]:-$nfsresponse}" \
+                 "NFS IP to mount, ${opts[3]:-$nfsip}" \
+                 "Test S3,${opts[4]:-$s3response}" \
+                 "IP of S3 endpoint,${opts[5]:-$s3ip}" \
+                 "Upload Results?,${opts[6]:-$sendresults}" \
                  "Start Test")
         clear
         echo "Benchmaster:"
