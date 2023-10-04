@@ -295,7 +295,7 @@ runjobs() {
                         ssh root@$l "screen -r \"fioserver\" -X stuff $\"export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
                         sleep 1s
                         commandset=("--client=$l")
-                        command+="$commandset jobfiles/$i "
+                        command+="$commandset jobfiles/file/$i "
                     done
                     curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
                         fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
@@ -325,7 +325,7 @@ runjobs() {
                         ssh root@$l "screen -r \"fioserver\" -X stuff $\"export S3_IP=$s3ip;export S3_KEY=$s3secretaccesskey;exportS3_ID=$s3accesskeyID  export curjob=$curjob;export ramptime=$ramptime;export runtime=$runtime;export size=$size;export filesize=${filesize}G;export fiotarget=$fiotarget;export curjob=$curjob;fio --server\n\""
                         sleep 1s
                         commandset=("--client=$l")
-                        command+="$commandset jobfiles/$i "
+                        command+="$commandset jobfiles/s3/$i "
                     done
                     curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget curjob=$curjob \
                         fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
