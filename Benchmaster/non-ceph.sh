@@ -89,12 +89,12 @@ infogather() {
                 0)
                     # Test description
                     read -r -p "Describe the cluster/test: " opts[0]
-                    cdesc=opts[0]
+                    cdesc=${opts[0]}
                     ;;
                 1)  
                     # Target bucket
                     read -r -p "Enter the target directory portion of the mountpoint or bucket name to copy data to: " opts[1]
-                    bucketname=$opts[1]
+                    bucketname=${opts[1]}
                     ;;
                 2)
                     # NFS
@@ -108,7 +108,7 @@ infogather() {
                 3)
                     # NFS mount IP
                     read -r -p "Enter the NFS IP to mount: " opts[3]
-                    nfsip=opts[3]
+                    nfsip=${opts[3]}
                     ;;
                 4)
                     # S3
@@ -123,7 +123,7 @@ infogather() {
                 5)
                     #S3 IP
                     read -r -p "Enter the S3 target IP: " opts[5]    
-                    s3ip=opts[5]
+                    s3ip=${opts[5]}
                     ;;
                 6)
                     # Upload results
