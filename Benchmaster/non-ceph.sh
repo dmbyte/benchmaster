@@ -94,7 +94,7 @@ infogather() {
                 1)  
                     # Target bucket
                     read -r -p "Enter the target directory portion of the mountpoint or bucket name to copy data to: " opts[1]
-                    bucketname=opts[1]
+                    bucketname=$opts[1]
                     ;;
                 2)
                     # NFS
@@ -156,6 +156,7 @@ infogather() {
         echo
         echo "Using configuration parameters:"
         printf "%-15s:   %-8s\n" cdesc $cdesc
+        printf "%-15s:   %-8s\n" bucketname $bucketname
         printf "%-15s:   %-8s\n" sendresults $sendresults
         printf "%-15s:   %-80s\n" testlist "$testlist"
         printf "%-15s:   %-8s\n" nfsresponse $nfsresponse
