@@ -244,7 +244,7 @@ prepare() {
 
 runjobs() {
     #This function runs the jobfiles
-    jobfiles="jobfiles/prepit.prep "$(ls jobfiles/*.fio)
+    
     loadgens=$(cat loadgens.lst)
 
     if [ $debug != 1 ]; then
@@ -275,7 +275,9 @@ runjobs() {
 
         esac
         if $test != "s3"; then
-            for i in $jobfiles/file; do
+            echo *******NOT S3****************
+            jobfiles="jobfiles/file/prepit.prep "$(ls jobfiles/file/*.fio)
+            for i in $jobfiles; do
                 skiplist=$(head -1 $i | grep skip)
                 if ! [[ " $skiplist " =~ " $test " ]]; then
                     i=${i##*/}
@@ -304,7 +306,8 @@ runjobs() {
                 #read -r -p "press enter to proceed to next job" garbage
             done
         else
-            for i in $jobfiles/s3; do
+            jobfiles=$(ls jobfiles/s3/*.fio)
+            for i in $jobfiles; do
                 skiplist=$(head -1 $i | grep skip)
                 if ! [[ " $skiplist " =~ " $test " ]]; then
                     i=${i##*/}
