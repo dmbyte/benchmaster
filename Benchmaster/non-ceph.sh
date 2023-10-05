@@ -335,7 +335,9 @@ runjobs() {
                     echo "Letting system settle for 30s"
                     sleep 30s
                 fi
-                read -r -p "press enter to proceed to next job" garbage
+                if [ $debug = 1 ]; then
+                    read -r -p "press enter to proceed to next job" garbage
+                fi
             done
 
         fi
