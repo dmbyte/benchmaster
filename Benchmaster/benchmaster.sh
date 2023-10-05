@@ -17,6 +17,7 @@ testlist=""
 allocdiv=0
 ramptime=600
 runtime=1800
+pooloptions="--autoscale-mode off"
 
 optcfg () {
     local option=$1
@@ -378,7 +379,7 @@ prepare() {
 
     # These are needed whether EC/or otherwise
     ceph osd crush rule create-replicated $mydclass default host $mydclass
-    ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+    ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass $pooloptions
     # SES6 specific code?
     [[ "ceph_ver" -ge "14" ]] && ceph osd pool set 3rep-bench size $replicacount 
     ceph osd pool application enable 3rep-bench rbd
@@ -387,7 +388,7 @@ prepare() {
     if [[ $rbdresponse =~ [yY] ]]; then
         #create a pool of size 3 for initial benchmarks
         ceph osd crush rule create-replicated $mydclass default host $mydclass
-        ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass
+        ceph osd pool create 3rep-bench $powertwo $powertwo replicated $mydclass $pooloptions
         ceph osd pool application enable 3rep-bench rbd
         echo settling the system for 30 seconds
         sleep 30s
@@ -409,7 +410,7 @@ prepare() {
         if [[ $testecresponse =~ [yY] ]]; then
             #make EC RBD pool and mount it
             ceph osd erasure-code-profile set ecbench plugin=$ecplugin k=3 m=1 crush-device-class=$mydclass
-            ceph osd pool create ecrbdbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
+            ceph osd pool create ecrbdbench $((powertwo/2)) $((powertwo/2)) erasure ecbench $pooloptions
             ceph osd pool set ecrbdbench allow_ec_overwrites true
             ceph osd pool application enable ecrbdbench rbd
 
@@ -443,8 +444,8 @@ prepare() {
         salt -I roles:mds cmd.run 'systemctl start ceph-mds.target'
 
         #create new CephFS
-        ceph osd pool create cephfs_data $powertwo $powertwo replicated $mydclass
-        ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass
+        ceph osd pool create cephfs_data $powertwo $powertwo replicated $mydclass $pooloptions
+        ceph osd pool create cephfs_metadata $((powertwo/4)) $((powertwo/4)) replicated $mydclass $pooloptions
         ceph fs new cephfs cephfs_metadata cephfs_data
     ### ADDED for replica testing
         sleep 30s
@@ -477,7 +478,7 @@ prepare() {
         echo
         if [[ $testecresponse =~ [yY] ]]; then
             #create EC CephFS pool and mount it
-            ceph osd pool create eccephfsbench $((powertwo/2)) $((powertwo/2)) erasure ecbench
+            ceph osd pool create eccephfsbench $((powertwo/2)) $((powertwo/2)) erasure ecbench $pooloptions
             ceph osd pool set eccephfsbench allow_ec_overwrites true
             ceph osd pool application enable eccephfsbench cephfs
             ceph fs add_data_pool cephfs eccephfsbench
