@@ -324,10 +324,11 @@ runjobs() {
                         ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
                         ssh root@$l "screen -r \"fioserver\" -X stuff $\"S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --server\n\""
                         sleep 1s
-                        commandset=("--client=$l")
-                        command+="$commandset jobfiles/s3/$i "
                     done
-                    echo "curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command"
+                    command+="-client=loadgens.lst jobfiles/s3/$i "
+                    if [ $debug = 1 ]; then
+                        echo "curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command"
+                    fi
                     curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command
                     echo "Letting system settle for 30s"
                     sleep 30s
