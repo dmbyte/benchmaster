@@ -1,5 +1,5 @@
 # RAM requirement for the loadgen nodes is bs*iodepth*numjobs
-# for this config file, that is 1GB x 8 io depth x 8 jobs = 64GB required
+# for this config file, that is 1GB x 6 io depth x 8 jobs = 48GB required
 [global]
 time_based=1
 ramp_time=${ramptime}
@@ -26,7 +26,7 @@ http_s3_region=none
 rw=rw
 rwmixread=0
 bs=1G
-iodepth=8
+iodepth=6
 filesize=${filesize}
 numjobs=8
 
