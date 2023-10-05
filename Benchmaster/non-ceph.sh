@@ -267,8 +267,6 @@ runjobs() {
             export size=$(($filesize * 10))G
             ;;
         s3)
-            export fiotarget='/'$bucketname'/benchmaster/0.fil:/'$bucketname'/benchmaster/1.fil:/'$bucketname'/benchmaster/2.fil:/'$bucketname'/benchmaster/3.fil:/'$bucketname'/benchmaster/4.fil:/'$bucketname'/benchmaster/5.fil:/'$bucketname'/benchmaster/6.fil:/'$bucketname'/benchmaster/7.fil:/'$bucketname'/benchmaster/8.fil:/mnt/'$bucketname'/benchmaster/9.fil:/mnt/'$bucketname'/benchmaster/10.fil:/mnt/'$bucketname'/benchmaster/11.fil:/mnt/'$bucketname'/benchmaster/12.fil:/mnt/'$bucketname'/benchmaster/13.fil:/mnt/'$bucketname'/benchmaster/14.fil:/mnt/'$bucketname'/benchmaster/15.fil:/mnt/'$bucketname'/benchmaster/16.fil'
-            export size=$(($filesize * 10))G
 
             ;;
 
@@ -306,6 +304,9 @@ runjobs() {
             done
         else
             jobfiles=$(ls jobfiles/s3/*.fio)
+            
+            export size=$(($filesize * 10))G
+
             for i in $jobfiles; do
                 skiplist=$(head -1 $i | grep skip)
                 if ! [[ " $skiplist " =~ " $test " ]]; then
@@ -317,12 +318,13 @@ runjobs() {
                     sleep 1s
                     commandset=""
                     command=""
+                    export fiotarget='/'$bucketname'/benchmaster/'$curjob'/0.fil:/'$bucketname'/benchmaster/'$curjob'/1.fil:/'$bucketname'/benchmaster/'$curjob'/2.fil:/'$bucketname'/benchmaster/'$curjob'/3.fil:/'$bucketname'/benchmaster/'$curjob'/4.fil:/'$bucketname'/benchmaster/'$curjob'/5.fil:/'$bucketname'/benchmaster/'$curjob'/6.fil:/'$bucketname'/benchmaster/'$curjob'/7.fil:/'$bucketname'/benchmaster/'$curjob'/8.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/9.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/10.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/11.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/12.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/13.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/14.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/15.fil:/mnt/'$bucketname'/benchmaster/'$curjob'/16.fil'
                     for l in $loadgens; do
                         #start fio server on each loadgen
                         #echo "Killing any running fio on $l and starting fio servers in screen session"
                         ssh root@$l 'killall -9 fio &>/dev/null;killall -9 screen &>/dev/null;sleep 1s;screen -wipe &>/dev/null;screen -S "fioserver" -d -m'
                         ssh root@$l 'sync; echo 3 > /proc/sys/vm/drop_caches'
-                        ssh root@$l "screen -r \"fioserver\" -X stuff $\"S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID curjob=$curjob ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --server\n\""
+                        ssh root@$l "screen -r \"fioserver\" -X stuff $\"fio --server\n\""
                         sleep 1s
                     done
                     command+="-client=loadgens.lst jobfiles/s3/$i "
