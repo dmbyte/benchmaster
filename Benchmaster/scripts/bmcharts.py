@@ -10,13 +10,13 @@ writebar = "#A7A9AC"
 hline = "#0007B0"
 
 if len(sys.argv) != 2:
-    print 'USAGE: bmcharts.py <path to benchmaster results>'
+    print ('USAGE: bmcharts.py <path to benchmaster results>')
     sys.exit(1)
 
 
-protocols = ['rbd', 'cephfs']
+protocols = ['rbd', 'cephfs', 'nfs', 's3']
 iopattern = ['seqwrite', 'seqread', 'randwrite', 'randread',
-             'mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data']
+             'mixed', 'backup', 'recovery', 'kvm', 'oltp-log', 'oltp-data', 'S3_seqwrite']
 clivar1 = sys.argv[1]
 
 
@@ -34,16 +34,16 @@ results = []
 filelist = search_files(clivar1)
 for thisproto in protocols:
     for iopat in iopattern:
-        # print "Proto = %s     IOPAT= %s" %(thisproto, iopat)
+        # print ("Proto = %s     IOPAT= %s" %(thisproto, iopat))
         for thisfile in filelist:
-	    thisresult = []
+            thisresult = []
             myjson = ''
             xlabels = ''
             yvalues = ''
             tempfileinfo = thisfile.split("/")
             testname = tempfileinfo[len(tempfileinfo)-1]
             if thisproto in testname and iopat in testname:
-                # print 'testname '+testname
+                # print ('testname '+testname)
                 with open(thisfile, 'r') as f:
                     jsonstart = False
                     for line in f:
@@ -68,10 +68,16 @@ for thisproto in protocols:
                     bso = 1024
                 elif bs == '64k':
                     bso = 64
+                elif bs == '32k':
+                    bso = 32
                 elif bs == '8k':
                     bso = 8
                 elif bs == '4k':
                     bso = 4
+                elif bs == '512M':
+                    bso = 524288
+                elif bs == '128M':
+                    bso = 131072
                 else:
                     bso = 0
 
@@ -104,16 +110,14 @@ for thisproto in protocols:
                         readiops = fiodata['client_stats'][x]['read']['iops']
                         readavglat = fiodata['client_stats'][x]['read'][lat_key]['mean']/latdiv
                         readmaxlat = fiodata['client_stats'][x]['read'][lat_key]['max']/latdiv
-                        # print '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"
-                        thisresult = [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobsp
-                            latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops,
-			results.append(thisresult)
-# print 'total results: %s' %(len(results))
+                        # print ('"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")
+                        thisresult = [protection, thisproto, bso, iopat, rwsetting, readpercentage, maxiodepth, jobsp, latwindow, latpercentage, writebw, writeiops, writeavglat, writemaxlat, readbw, readiops, results.append(thisresult)
+# print ('total results: %s' %(len(results)))
 # from sets import Set
-myset = set()
+myset.clear()
 for x in results:
         myset.add(x[1]+x[3])
-print 'myset: %s' %(myset)
+print ('myset: %s' %(myset))
 
 
 # time to make some graphs
@@ -137,10 +141,10 @@ for filter in myset:
 	        graphlist.append(rline)
     sortgraph = graphlist.sort(key=itemgetter(2))
     for sline in graphlist:
-        print sline
+        print (sline)
         myrow = []
         colors = []
-	# print 'barheight: %s' %(int(sline[15]))
+	# print ('barheight: %s' %(int(sline[15])))
 	if sline[5] != "100":
     		barheight.append(int(sline[11]))
 		graphlines.append(gc)
