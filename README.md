@@ -3,14 +3,13 @@ Benchmark scripts, config files, etc
 
 The script runs the jobs specified in the jobfiles directory.  It begins by ensuring all infrastructure is configured including installing fio, setting up ssh keys, and running fio --server in screen sessions on the load generation nodes.
 
-It is recommended that benchmaster be run on the salt-master/SES admin node
 
 ****WARNING**** The run time for a full suite of tests will range from 2 - 6 days depending on the size and speed of the OSDs as the cluster must pre-poulate the test images with uncompressible, random data
 
 ### Preparation
 Every node should have access to package repositories
-The script expects to have 2 files placed in benchmaster/Benchmaster
- - loadgens.lst: This will contain resolvable hostnames of the load generation nodes. These should have a fresh install of SLES
+The script expects to have 1 file placed in the benchmaster directory
+ - loadgens.lst: This will contain resolvable hostnames of the load generation nodes. These should have a fresh install of a recent Linux OS
   
 ### Configuration:
 There are two parameters you can edit in the top of the file.  These control test run time.  They are defaulted to values that should help ensure that the cache is overrun and that actual performance maximums are achieved.  
