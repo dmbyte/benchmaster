@@ -26,7 +26,7 @@ rwmixread=0
 bs=512M
 iodepth=1
 filesize=${filesize}
-numjobs=50
+numjobs=80
 
 
 write_bw_log=results/${curjob}/write.results
