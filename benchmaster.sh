@@ -1,5 +1,5 @@
 #!/bin/bash
-debug=0
+debug=0 #0 is no debug, 1 is added debug info, 2 is pause after each jobfile until return is pressed
 #debug doesn't collect system info.
 
 #defaults
@@ -272,7 +272,6 @@ runjobs() {
 
         esac
         if ! [[ " $test " == " s3 " ]]; then
-            echo *******NOT S3****************
             jobfiles="jobfiles/file/prepit.prep "$(ls jobfiles/file/*.fio)
             for i in $jobfiles; do
                 skiplist=$(head -1 $i | grep skip)
@@ -328,7 +327,7 @@ runjobs() {
                         sleep 1s
                     done
                     command+="-client=loadgens.lst jobfiles/s3/$i "
-                    if [ $debug = 1 ]; then
+                    if [ $debug = 2 ]; then
                         echo "curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command"
                     fi
                     curjob=$curjob S3_IP=$s3ip S3_KEY=$s3secretaccesskey S3_ID=$s3accesskeyID ramptime=$ramptime runtime=$runtime size=$size filesize=${filesize}G fiotarget=$fiotarget fio --eta=never --output-format=normal,json+ --output=results/$test-$jobname/$test-$jobname.benchmark $command

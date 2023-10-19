@@ -24,9 +24,9 @@ http_s3_region=none
 rw=rw
 rwmixread=0
 bs=512M
-iodepth=8
+iodepth=1
 filesize=${filesize}
-numjobs=16
+numjobs=50
 
 
 write_bw_log=results/${curjob}/write.results
